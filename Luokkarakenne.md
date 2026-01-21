@@ -64,7 +64,7 @@ Tämä dokumentti kuvaa peliprojektin (Python + Pygame) luokkajaon siten, että 
 * `EnemyTypeA`
 * `EnemyTypeB`
 * `EnemyTypeC`
-* (valinnainen) `BossEnemy`
+*  `BossEnemy`
 
 **Vastuu:**
 
@@ -78,6 +78,7 @@ Tämä dokumentti kuvaa peliprojektin (Python + Pygame) luokkajaon siten, että 
 
 **Luokat:**
 
+* `Meteor`
 * `CollisionManager`
 
 **Vastuu:**
