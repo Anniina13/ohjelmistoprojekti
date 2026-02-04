@@ -3,7 +3,6 @@
 import pygame
 import os
 import random
-from player import Player
 
 
 
@@ -22,7 +21,7 @@ X = 1600
 screen = pygame.display.set_mode((X,Y))
 
 # load, convert and scale background to window size
-tausta = pygame.image.load(os.path.join(os.path.dirname(__file__),'images','taustat','avaruus.png')).convert()
+tausta = pygame.image.load(os.path.join(os.path.dirname(__file__),'img','avaruus.jpg')).convert()
 tausta = pygame.transform.scale(tausta, (X, Y))
 # Käytetään hallittua skaalausta (esim. 1.5x) jotta tausta on hieman suurempi kuin ikkuna
 scale_factor = 1
@@ -30,15 +29,15 @@ tausta = pygame.transform.scale(tausta, (int(X * scale_factor), int(Y * scale_fa
 
 # Lataa planeetat ja arvo niiden paikat ison taustan mukaan
 planeetat = [
-    pygame.transform.scale(pygame.image.load("images/planeetat/slice2.png"), (100, 100)),
-    pygame.transform.scale(pygame.image.load("images/planeetat/slice3.png"), (100, 100)),
-    pygame.transform.scale(pygame.image.load("images/planeetat/slice4.png"), (100, 100)),
-    pygame.transform.scale(pygame.image.load("images/planeetat/slice5.png"), (100, 100)),
-    pygame.transform.scale(pygame.image.load("images/planeetat/slice6.png"), (100, 100)),
-    pygame.transform.scale(pygame.image.load("images/planeetat/slice7.png"), (100, 100)),
-    pygame.transform.scale(pygame.image.load("images/planeetat/slice8.png"), (100, 100)),
-    pygame.transform.scale(pygame.image.load("images/planeetat/slice9.png"), (100, 100)),
-    pygame.transform.scale(pygame.image.load("images/planeetat/slice10.png"), (100, 100)),
+    pygame.transform.scale(pygame.image.load("ProjektiProto/img/slice2.png"), (100, 100)),
+    pygame.transform.scale(pygame.image.load("ProjektiProto/img/slice3.png"), (100, 100)),
+    pygame.transform.scale(pygame.image.load("ProjektiProto/img/slice4.png"), (100, 100)),
+    pygame.transform.scale(pygame.image.load("ProjektiProto/img/slice5.png"), (100, 100)),
+    pygame.transform.scale(pygame.image.load("ProjektiProto/img/slice6.png"), (100, 100)),
+    pygame.transform.scale(pygame.image.load("ProjektiProto/img/slice7.png"), (100, 100)),
+    pygame.transform.scale(pygame.image.load("ProjektiProto/img/slice8.png"), (100, 100)),
+    pygame.transform.scale(pygame.image.load("ProjektiProto/img/slice9.png"), (100, 100)),
+    pygame.transform.scale(pygame.image.load("ProjektiProto/img/slice10.png"), (100, 100)),
 ]
 
 tausta_leveys, tausta_korkeus = tausta.get_width(), tausta.get_height()
@@ -53,19 +52,26 @@ for _ in range(len(planeetat)):
 # - Corvette-sprite-kansion kaikki .png-kehykset
 # - Player-olio maailman keskelle
 # -----------------------------
-
+from player import Player
 
 # Lataa liikeanimaation kehykset: ProjektiProto/img/Corvette/Move
-corvette_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'alukset','alus', 'Corvette', 'Move'))
+corvette_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'img', 'Corvette', 'Move'))
 frames = []
 if os.path.isdir(corvette_dir):
     for f in sorted(os.listdir(corvette_dir)):
         if f.lower().endswith('.png'):
             frames.append(pygame.image.load(os.path.join(corvette_dir, f)).convert_alpha())
-
+else:
+    # Fallback: etsi vanhasta polusta jos Move-kansio puuttuu
+    old_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'images', 'alukset', 'spaceship-sprite-sheets', 'Corvette'))
+    if os.path.isdir(old_dir):
+        for root, _, files in os.walk(old_dir):
+            for f in sorted(files):
+                if f.lower().endswith('.png'):
+                    frames.append(pygame.image.load(os.path.join(root, f)).convert_alpha())
 
 # Lataa boost-animaatiokehykset (näytetään kun W painetaan)
-boost_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'alukset','alus', 'Corvette', 'Boost'))
+boost_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'img', 'Corvette', 'Boost'))
 boost_frames = []
 if os.path.isdir(boost_dir):
     for f in sorted(os.listdir(boost_dir)):

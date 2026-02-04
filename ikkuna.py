@@ -1,3 +1,4 @@
+
 # Pohjat otettu: https://www.youtube.com/watch?v=2iyx8_elcYg
 import pygame
 pygame.init()
