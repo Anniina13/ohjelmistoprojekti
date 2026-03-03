@@ -12,7 +12,8 @@ def sprite_length(image_path):
     return None
 
 def main():
-    folder = r"C:\Users\juhok\Documents\1._Opinnot\1.KEVAT2026\Ohjelmistoprojekti\Github_kansio\ohjelmistoprojekti\alukset\alus\Corvette\Move"
+    # Specific absolute path removed; use project-relative Move folder instead
+    folder = os.path.join(os.path.dirname(__file__), '..', 'alukset', 'alus', 'Move')
     for filename in os.listdir(folder):
         if filename.lower().endswith(".png"):
             path = os.path.join(folder, filename)

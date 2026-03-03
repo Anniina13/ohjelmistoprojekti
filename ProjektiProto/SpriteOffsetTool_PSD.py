@@ -101,8 +101,7 @@ def process_psd_layers(psd_path, patch_size=10):
 
 def main():
     psd_files = [
-        'alukset/alus/Corvette_Spritelist.psd',
-
+        # Configure project-specific PSD paths here
     ]
     for psd_path in psd_files:
         if os.path.exists(psd_path):

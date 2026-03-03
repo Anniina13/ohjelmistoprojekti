@@ -242,10 +242,19 @@ class ExplosionManager:
         # enemy: sama paikka pienemmällä koossa
         enemy_folder = os.path.join(base, 'Explosion1')
         self.load_frames_for('enemy', folder=enemy_folder, size=(160, 160))
-        # player: esimerkkikansio käyttäjän antamalle Corvetten 'Destroyed' -kansiolle
-        player_folder = os.path.join(os.path.dirname(__file__), 'alukset', 'alus', 'Corvette', 'Destroyed')
-        # jos kuvat eivät noudata numeroituja tiedostonimiä, ne silti ladataan
-        self.load_frames_for('player', folder=player_folder, size=(220, 220), pattern=r"(.*)\.png")
+        # player: look for any ship 'Destroyed' folder under alukset/alus instead of a hardcoded ship
+        project_root = os.path.dirname(__file__)
+        player_folder = None
+        alukset_alus = os.path.join(os.path.dirname(__file__), 'alukset', 'alus')
+        if os.path.isdir(alukset_alus):
+            for candidate in sorted(os.listdir(alukset_alus)):
+                cand = os.path.join(alukset_alus, candidate, 'Destroyed')
+                if os.path.isdir(cand):
+                    player_folder = cand
+                    break
+        if player_folder:
+            # jos kuvat eivät noudata numeroituja tiedostonimiä, ne silti ladataan
+            self.load_frames_for('player', folder=player_folder, size=(220, 220), pattern=r"(.*)\.png")
 
     def update(self, dt_ms):
         """Päivitä kaikki aktiiviset räjähdykset ja poista päättyneet.

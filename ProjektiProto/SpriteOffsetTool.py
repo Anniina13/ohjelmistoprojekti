@@ -53,10 +53,11 @@ def find_best_patch_xy(img, ref_patch):
     return best_x, best_y
 
 def main():
-    idle_dir = 'alukset/alus/Corvette/Idle'
+    # Default placeholders. Set these paths to your ship directories if needed.
+    idle_dir = 'alukset/alus/Idle'
     idle_file = '000_Idle_0.png'
     idle_path = os.path.join(idle_dir, idle_file)
-    sprite_dir = 'alukset/alus/Corvette/Damage'
+    sprite_dir = 'alukset/alus/Damage'
     sprite_files = [
         'Damage_1.png', 'Damage_2.png', 'Damage_3.png', 'Damage_4.png',
         'Damage_5.png', 'Damage_6.png', 'Damage_7.png', 'Damage_8.png', 'Damage_9.png'

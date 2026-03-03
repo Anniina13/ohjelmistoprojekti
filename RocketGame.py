@@ -15,6 +15,7 @@ from boss_enemy import BossEnemy
 from points import Points
 sys.path.append(os.path.dirname(__file__))
 from Player import Player
+from player2 import Player2
 from MainMenu import MainMenu
 from gameOver import GameOverScreen
 from SpriteSettings import SpriteSettings
@@ -118,6 +119,14 @@ from explosion import ExplosionManager
 
 # create a manager and load default frames from the standard folder
 explosion_manager = ExplosionManager(ExplosionManager.load_frames())
+
+# Report current ammo presets and whether player has shot frames/ammo images
+try:
+    from Ammus import Ammus
+    preset_summary = {k: {kk: v for kk, v in Ammus.PRESETS[k].items()} for k in Ammus.PRESETS}
+    print('Ammus presets:', preset_summary)
+except Exception:
+    pass
 
 # Collision and UI helpers moved to modules for modularity
 USE_SPATIAL_COLLISIONS = True
@@ -380,37 +389,43 @@ except Exception:
 
 # -----------------------------
 # Pelaajan (Player) lataus ja asetukset
-# - Corvette-sprite-kansion kaikki .png-kehykset
 # - Player-olio maailman keskelle
 # -----------------------------
 
 
-# Lataa liikeanimaation kehykset: ProjektiProto/img/Corvette/Move
-corvette_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'alukset','alus', 'Corvette', 'Move'))
-frames = []
-if os.path.isdir(corvette_dir):
-    for f in sorted(os.listdir(corvette_dir)):
-        if f.lower().endswith('.png'):
-            frames.append(pygame.image.load(os.path.join(corvette_dir, f)).convert_alpha())
-
-
-# Lataa boost-animaatiokehykset (näytetään kun W painetaan)
-boost_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'alukset','alus', 'Corvette', 'Boost'))
-boost_frames = []
-if os.path.isdir(boost_dir):
-    for f in sorted(os.listdir(boost_dir)):
-        if f.lower().endswith('.png'):
-            boost_frames.append(pygame.image.load(os.path.join(boost_dir, f)).convert_alpha())
-
 # Luodaan pistelaskuriolio.
 pistejarjestelma = Points()
 
-# Luo pelaaja maailman keskelle
+# Luo pelaaja maailman keskelle. Valitse aluksen nimi tähän (esim. 'Bomber', 'FIGHTER')
+player_ship = os.environ.get('PLAYER_SHIP', 'FIGHTER')
 player_start_x = tausta_leveys // 2
 player_start_y = tausta_korkeus // 2
 player_scale_multiplier = 10
-player_scale_factor = 0.5  # Skaalaa pelaaja puoleen kokoon
-player = Player(player_scale_factor, frames, player_start_x, player_start_y, boost_frames=boost_frames, max_health=5)
+player_scale_factor = 1  # Skaalaa pelaajan sprite.
+
+# Käytä uutta `Player2`-luokkaa joka lataa spritet dynaamisesti
+try:
+    player = Player2(player_ship, player_scale_factor, player_start_x, player_start_y, max_health=5)
+except Exception as e:
+    # Tulostetaan poikkeus syyksi, jotta tiedetään miksi Player2 epäonnistui
+    import traceback
+    traceback.print_exc()
+    print('Player2 init failed, falling back to legacy Player:', e)
+    # varmistus: paluu takaisin vanhaan Player-luokkaan jos jokin menee pieleen
+    # Korvataan aiempi kovakoodattu lataus tyhjillä frame-listoilla
+    frames = []
+    boost_frames = []
+    player = Player(player_scale_factor, frames, player_start_x, player_start_y, boost_frames=boost_frames, max_health=5)
+
+# Debug: kerrotaan käytössä oleva pelaajaluokka ja skaala-arvot
+try:
+    print(f"Player instance: {type(player)}")
+    print(f"player.scale_factor = {getattr(player, 'scale_factor', None)}")
+    # jos pelaajalla on kuvaattribuutti, näytetään sen koko
+    if getattr(player, 'image', None) is not None:
+        print('player.image.get_size() =', player.image.get_size())
+except Exception:
+    pass
 
 # Pelaajan elämät / health
 lives = player.health if hasattr(player, 'health') else 5

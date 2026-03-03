@@ -58,16 +58,25 @@ class Player(pygame.sprite.Sprite):
 
         # Use actual filenames from repository (capitalization preserved)
         attack_files = ['000_Attack_1_0.png', '001_Attack_1_1.png', '002_Attack_1_2.png', '003_Attack_1_3.png']
-        attack_dir = os.path.join(project_root, 'alukset', 'alus', 'Corvette', 'Attack_1')
-        for fname in attack_files:
-            path = os.path.join(attack_dir, fname)
-            try:
-                img = pygame.image.load(path).convert_alpha()
-            except Exception:
-                continue
-            w = max(1, int(img.get_width() * self.scale_factor))
-            h = max(1, int(img.get_height() * self.scale_factor))
-            self.attack_frames.append(pygame.transform.scale(img, (w, h)))
+        # Find any ship folder under alukset/alus that contains Attack_1, instead of hardcoding a single ship
+        attack_dir = None
+        alukset_alus = os.path.join(project_root, 'alukset', 'alus')
+        if os.path.isdir(alukset_alus):
+            for candidate in sorted(os.listdir(alukset_alus)):
+                cand_dir = os.path.join(alukset_alus, candidate, 'Attack_1')
+                if os.path.isdir(cand_dir):
+                    attack_dir = cand_dir
+                    break
+        if attack_dir:
+            for fname in attack_files:
+                path = os.path.join(attack_dir, fname)
+                try:
+                    img = pygame.image.load(path).convert_alpha()
+                except Exception:
+                    continue
+                w = max(1, int(img.get_width() * self.scale_factor))
+                h = max(1, int(img.get_height() * self.scale_factor))
+                self.attack_frames.append(pygame.transform.scale(img, (w, h)))
         self.attack_frame_index = 0
         self.attack_anim_timer = 0
         self.attack_anim_speed = 80
@@ -85,8 +94,16 @@ class Player(pygame.sprite.Sprite):
         # Vahinko-animaatio
         self.damage_sprites = []
         self.damage_sprite_names = []
-        damage_dir = os.path.join(project_root, 'alukset', 'alus', 'Corvette', 'Damage')
-        if os.path.isdir(damage_dir):
+        # Find any ship folder under alukset/alus that contains Damage frames
+        damage_dir = None
+        alukset_alus = os.path.join(project_root, 'alukset', 'alus')
+        if os.path.isdir(alukset_alus):
+            for candidate in sorted(os.listdir(alukset_alus)):
+                cand_dir = os.path.join(alukset_alus, candidate, 'Damage')
+                if os.path.isdir(cand_dir):
+                    damage_dir = cand_dir
+                    break
+        if damage_dir:
             damage_files = sorted([f for f in os.listdir(damage_dir) if f.lower().endswith('.png')])
             for fname in damage_files:
                 path = os.path.join(damage_dir, fname)

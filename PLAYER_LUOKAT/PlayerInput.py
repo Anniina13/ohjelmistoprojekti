@@ -6,7 +6,10 @@ class PlayerInput:
         self.moveDown = False
         self.turnLeft = False
         self.turnRight = False
+        # shoot1 = L, shoot2 = P. Säilytetään myös `shoot` alias yhteensopivuuden vuoksi (shoot -> shoot1)
         self.shoot = False
+        self.shoot1 = False
+        self.shoot2 = False
         self.hit = False
 
     def update(self):
@@ -15,5 +18,9 @@ class PlayerInput:
         self.moveDown = keys[pygame.K_s]
         self.turnLeft = keys[pygame.K_d]
         self.turnRight = keys[pygame.K_a]
-        self.shoot = keys[pygame.K_p]
+        # Asetetaan shoot1 ja shoot2 erillisinä nappeina: P = Shot1, L = Shot2
+        self.shoot1 = keys[pygame.K_p]
+        self.shoot2 = keys[pygame.K_l]
+        # säilytä shoot alias vanhalle koodille (ottaa arvon shoot1)
+        self.shoot = self.shoot1
         self.hit = keys[pygame.K_h]

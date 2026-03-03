@@ -44,17 +44,25 @@ class Player(pygame.sprite.Sprite):
         # Attack animation
         self.attack_frames = []
         project_root = os.path.dirname(os.path.dirname(__file__))
-        attack_paths = [
-            os.path.join(project_root, 'alukset', 'alus', 'Corvette', 'Attack_1', '000_attack_1_0.png'),
-            os.path.join(project_root, 'alukset', 'alus', 'Corvette', 'Attack_1', '001_attack_1_1.png'),
-            os.path.join(project_root, 'alukset', 'alus', 'Corvette', 'Attack_1', '002_attack_1_2.png'),
-            os.path.join(project_root, 'alukset', 'alus', 'Corvette', 'Attack_1', '003_attack_1_3.png'),
-        ]
-        for path in attack_paths:
-            img = pygame.image.load(path).convert_alpha()
-            w = max(1, int(img.get_width() * self.scale_factor))
-            h = max(1, int(img.get_height() * self.scale_factor))
-            self.attack_frames.append(pygame.transform.scale(img, (w, h)))
+        # Search for any ship folder under alukset/alus containing Attack_1
+        attack_dir = None
+        alukset_alus = os.path.join(project_root, 'alukset', 'alus')
+        if os.path.isdir(alukset_alus):
+            for candidate in sorted(os.listdir(alukset_alus)):
+                cand_dir = os.path.join(alukset_alus, candidate, 'Attack_1')
+                if os.path.isdir(cand_dir):
+                    attack_dir = cand_dir
+                    break
+        if attack_dir:
+            attack_paths = sorted([os.path.join(attack_dir, f) for f in os.listdir(attack_dir) if f.lower().endswith('.png')])
+            for path in attack_paths:
+                try:
+                    img = pygame.image.load(path).convert_alpha()
+                except Exception:
+                    continue
+                w = max(1, int(img.get_width() * self.scale_factor))
+                h = max(1, int(img.get_height() * self.scale_factor))
+                self.attack_frames.append(pygame.transform.scale(img, (w, h)))
         self.attack_frame_index = 0
         self.attack_anim_timer = 0
         self.attack_anim_speed = 80
@@ -67,15 +75,27 @@ class Player(pygame.sprite.Sprite):
         # Vahinko-animaatio
         self.damage_sprites = []
         self.damage_sprite_names = []
-        damage_dir = os.path.join(project_root, 'alukset', 'alus', 'Corvette', 'Damage')
-        damage_files = sorted([f for f in os.listdir(damage_dir) if f.lower().endswith('.png')])
-        for fname in damage_files:
-            path = os.path.join(damage_dir, fname)
-            img = pygame.image.load(path).convert_alpha()
-            w = max(1, int(img.get_width() * self.scale_factor))
-            h = max(1, int(img.get_height() * self.scale_factor))
-            self.damage_sprites.append(pygame.transform.scale(img, (w, h)))
-            self.damage_sprite_names.append(fname)
+        # Search for any ship folder under alukset/alus containing Damage
+        damage_dir = None
+        alukset_alus = os.path.join(project_root, 'alukset', 'alus')
+        if os.path.isdir(alukset_alus):
+            for candidate in sorted(os.listdir(alukset_alus)):
+                cand_dir = os.path.join(alukset_alus, candidate, 'Damage')
+                if os.path.isdir(cand_dir):
+                    damage_dir = cand_dir
+                    break
+        if damage_dir:
+            damage_files = sorted([f for f in os.listdir(damage_dir) if f.lower().endswith('.png')])
+            for fname in damage_files:
+                path = os.path.join(damage_dir, fname)
+                try:
+                    img = pygame.image.load(path).convert_alpha()
+                except Exception:
+                    continue
+                w = max(1, int(img.get_width() * self.scale_factor))
+                h = max(1, int(img.get_height() * self.scale_factor))
+                self.damage_sprites.append(pygame.transform.scale(img, (w, h)))
+                self.damage_sprite_names.append(fname)
 
 
     def update(self, dt):

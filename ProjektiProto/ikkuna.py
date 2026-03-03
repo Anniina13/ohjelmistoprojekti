@@ -49,34 +49,14 @@ for _ in range(len(planeetat)):
 
 # -----------------------------
 # Pelaajan (Player) lataus ja asetukset
-# - Corvette-sprite-kansion kaikki .png-kehykset
+# - Lataa pelaajan sprite-tiedostot tarvittaessa
 # - Player-olio maailman keskelle
 # -----------------------------
 from player import Player
 
-# Lataa liikeanimaation kehykset: ProjektiProto/img/Corvette/Move
-corvette_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'img', 'Corvette', 'Move'))
+# Sprite loading removed; use project-specific ship folders instead
 frames = []
-if os.path.isdir(corvette_dir):
-    for f in sorted(os.listdir(corvette_dir)):
-        if f.lower().endswith('.png'):
-            frames.append(pygame.image.load(os.path.join(corvette_dir, f)).convert_alpha())
-else:
-    # Fallback: etsi vanhasta polusta jos Move-kansio puuttuu
-    old_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'images', 'alukset', 'spaceship-sprite-sheets', 'Corvette'))
-    if os.path.isdir(old_dir):
-        for root, _, files in os.walk(old_dir):
-            for f in sorted(files):
-                if f.lower().endswith('.png'):
-                    frames.append(pygame.image.load(os.path.join(root, f)).convert_alpha())
-
-# Lataa boost-animaatiokehykset (näytetään kun W painetaan)
-boost_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), 'img', 'Corvette', 'Boost'))
 boost_frames = []
-if os.path.isdir(boost_dir):
-    for f in sorted(os.listdir(boost_dir)):
-        if f.lower().endswith('.png'):
-            boost_frames.append(pygame.image.load(os.path.join(boost_dir, f)).convert_alpha())
 
 
 
