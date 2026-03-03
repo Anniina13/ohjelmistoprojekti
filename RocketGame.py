@@ -113,38 +113,11 @@ boss_image = pygame.transform.scale(
 
 world_rect = pygame.Rect(0, 0, tausta_leveys, tausta_korkeus)
 
-# bossin räjädysanimaation frames
-import re
-from explosion import Explosion
+# bossin räjädysanimaation frames (moved to ExplosionManager)
+from explosion import ExplosionManager
 
-explosions = []
-
-def load_explosion_frames():
-    frames = []
-    folder = os.path.join(os.path.dirname(__file__),
-                          "enemy-sprite",
-                          "PNG_Parts&Spriter_Animation",
-                          "Explosions",
-                          "Explosion1")
-
-    pat = re.compile(r"000_Explosion1_(\d+)_0\.png", re.IGNORECASE)
-
-    items = []
-    for fn in os.listdir(folder):
-        m = pat.match(fn)
-        if m:
-            items.append((int(m.group(1)), fn))
-
-    items.sort(key=lambda x: x[0])
-
-    for _, fn in items:
-        img = pygame.image.load(os.path.join(folder, fn)).convert_alpha()
-        img = pygame.transform.scale(img, (200, 200))
-        frames.append(img)
-
-    return frames
-
-explosion_frames = load_explosion_frames()
+# create a manager and load default frames from the standard folder
+explosion_manager = ExplosionManager(ExplosionManager.load_frames())
 
 # Collision and UI helpers moved to modules for modularity
 USE_SPATIAL_COLLISIONS = True
@@ -587,8 +560,8 @@ while run:
                 if isinstance(enemy, BossEnemy):
                     died = enemy.take_hit(1)
                     if died:
-                        if explosion_frames:
-                            explosions.append(Explosion(explosion_frames, enemy.rect.center, fps=24))
+                        # spawn explosion via manager (frames preloaded into manager)
+                        explosion_manager.spawn(enemy.rect.center, fps=24)
 
                         enemies.remove(enemy)
                         pistejarjestelma.lisaa_piste(5)
@@ -905,14 +878,9 @@ while run:
         continue  # Älä suorita muuta pelisilmukkaa kun pause päällä
     # Päivitä näyttö
 
-    # bossin explosion
-    for ex in list(explosions):
-        ex.update(dt)
-        if ex.dead:
-            explosions.remove(ex)
-
-    for ex in explosions:
-        ex.draw(screen, camera_x, camera_y)
+    # handle explosions via manager
+    explosion_manager.update(dt)
+    explosion_manager.draw(screen, camera_x, camera_y)
     pygame.display.update()
     
 
