@@ -10,16 +10,16 @@ import os
 import pygame
 import random
 #from player import Player
-from Enemies.enemy import StraightEnemy, CircleEnemy, DownEnemy, UpEnemy, DownEnemy, UpEnemy
+from Enemies.enemy import StraightEnemy, CircleEnemy, DownEnemy, UpEnemy
 from boss_enemy import BossEnemy
 from points import Points
 sys.path.append(os.path.dirname(__file__))
 from Player import Player
 from player2 import Player2
 from Valikot.MainMenu import MainMenu
+from Valikot.NextLevel import NextLevel
 from Valikot.gameOver import GameOverScreen
 from SpriteSettings import SpriteSettings
-from itertools import product
 
 
 # Näytä päävalikko ensin
@@ -32,13 +32,6 @@ if result != "start_game":
     pygame.quit()
     sys.exit()
 pygame.event.clear()
-
-currentWorkDir = os.getcwd()
-print(currentWorkDir)
-
-sourceFileDir = os.path.dirname(os.path.abspath(__file__))
-print(sourceFileDir)
-
 
 #pygame.init()
 Y = 800
@@ -69,9 +62,6 @@ screen = pygame.display.set_mode((X,Y))
 # load, convert and scale background to window size
 tausta = pygame.image.load(os.path.join(os.path.dirname(__file__),'images','taustat','avaruus.png')).convert()
 tausta = pygame.transform.scale(tausta, (X, Y))
-# Käytetään hallittua skaalausta (esim. 1.5x) jotta tausta on hieman suurempi kuin ikkuna
-scale_factor = 1
-tausta = pygame.transform.scale(tausta, (int(X * scale_factor), int(Y * scale_factor)))
 
 # Lataa planeetat ja arvo niiden paikat ison taustan mukaan
 planeetat = [
@@ -131,8 +121,7 @@ except Exception:
 # Collision and UI helpers moved to modules for modularity
 USE_SPATIAL_COLLISIONS = True
 from collisions import SpatialHash, apply_impact, separate, _get_pos
-from ui import draw_hud, draw_death_overlay
-from ui import init_enemy_health_bars, get_enemy_bar_images, draw_healthbar_custom
+from ui import init_enemy_health_bars
 import planets
 
 # Instantiate spatial hash and collision state
@@ -142,7 +131,19 @@ collisions = set()
 # Wave system
 enemies = []
 current_wave = 1
+MAX_WAVE = 4
 wave_cleared = False
+
+
+def clear_round_state():
+    enemies.clear()
+    enemy_bullets.clear()
+    muzzles.clear()
+    collisions.clear()
+    try:
+        player.weapons.bullets.clear()
+    except Exception:
+        pass
 
 # pelin reset
 def reset_game():
@@ -153,15 +154,7 @@ def reset_game():
     wave_cleared = False
 
     # clear enemies + enemy bullets + muzzle effects+ collisions
-    enemies.clear()
-    enemy_bullets.clear()
-    muzzles.clear()
-    collisions.clear()
-
-    try:
-        player.weapons.bullets.clear()
-    except Exception:
-        pass
+    clear_round_state()
     #resetplayer health + lives
     
     player.health = int(getattr(player, "max_health", 5))
@@ -188,15 +181,7 @@ def restart_current_wave():
     global enemy_hit_cooldown, lives, collisions
 
     # tyhjennä kaikki kesken jääneet asiat
-    enemies.clear()
-    enemy_bullets.clear()
-    muzzles.clear()
-    collisions.clear()
-
-    try:
-        player.weapons.bullets.clear()
-    except Exception:
-        pass
+    clear_round_state()
 
     # reset player
     player.health = int(getattr(player, "max_health", 5))
@@ -400,7 +385,6 @@ pistejarjestelma = Points()
 player_ship = os.environ.get('PLAYER_SHIP', 'FIGHTER')
 player_start_x = tausta_leveys // 2
 player_start_y = tausta_korkeus // 2
-player_scale_multiplier = 10
 player_scale_factor = 1  # Skaalaa pelaajan sprite.
 
 # Käytä uutta `Player2`-luokkaa joka lataa spritet dynaamisesti
@@ -428,7 +412,6 @@ except Exception:
     pass
 
 # Pelaajan elämät / health
-lives = player.health if hasattr(player, 'health') else 5
 lives = 3
 enemy_hit_cooldown = 0
 enemy_hit_cooldown_duration = 1000  # 1 sekunti (millisekuntia)
@@ -543,7 +526,6 @@ while run:
                         collisions.add(pair)
 
             # separate with a few iterations for stability
-            # separate with a few iterations for stability
             for _ in range(12):   # vähän enemmän iteraatioita
                 new_collisions = set()
 
@@ -588,9 +570,32 @@ while run:
                 break  # Siirry seuraavaan ammukseen
 
     # Wave progression system
-    if len(enemies) == 0 and current_wave < 4:
+    if len(enemies) == 0 and current_wave < MAX_WAVE:
         current_wave += 1
-        spawn_wave(current_wave)   
+        spawn_wave(current_wave)
+        pygame.event.clear()
+        continue
+
+    # Show next level menu only after boss wave is cleared
+    if len(enemies) == 0 and current_wave >= MAX_WAVE:
+        next_level_screen = NextLevel(
+            current_level=current_wave,
+            max_level=MAX_WAVE,
+            display_current_level=1,
+            display_next_level=2,
+        )
+        next_level_action = next_level_screen.run()
+
+        if isinstance(next_level_action, int):
+            current_wave = next_level_action
+            spawn_wave(current_wave)
+            pygame.event.clear()
+        elif next_level_action == "settings":
+            pass
+        elif next_level_action in ("quit", "game_completed"):
+            run = False
+
+        continue
 
     # Tarkista osumat vihollisten ja pelaajan välillä
     if enemy_hit_cooldown <= 0:
