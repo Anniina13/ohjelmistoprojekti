@@ -20,6 +20,10 @@ from Valikot.MainMenu import MainMenu
 from Valikot.NextLevel import NextLevel
 from Valikot.gameOver import GameOverScreen
 from SpriteSettings import SpriteSettings
+from explosion import ExplosionManager
+from collisions import SpatialHash, apply_impact, separate, _get_pos, get_collision_radius
+from ui import init_enemy_health_bars
+import planets
 
 
 # Näytä päävalikko ensin
@@ -142,10 +146,42 @@ boss_image = pygame.transform.scale(
 world_rect = pygame.Rect(0, 0, tausta_leveys, tausta_korkeus)
 
 # bossin räjädysanimaation frames (moved to ExplosionManager)
-from explosion import ExplosionManager
-
 # create a manager and load default frames from the standard folder
-explosion_manager = ExplosionManager(ExplosionManager.load_frames())
+explosion_manager = ExplosionManager()
+# Populate type-specific frames without try/except by checking folders explicitly
+base_expl_dir = os.path.join(os.path.dirname(__file__), 'enemy-sprite', 'PNG_Parts&Spriter_Animation', 'Explosions')
+boss_folder = os.path.join(base_expl_dir, 'Explosion1')
+if os.path.isdir(boss_folder):
+    boss_frames = ExplosionManager.load_frames(folder=boss_folder, size=(300, 300))
+    if boss_frames:
+        explosion_manager.set_frames_for('boss', boss_frames)
+
+# enemy uses the same Explosion1 frames but smaller
+if os.path.isdir(boss_folder):
+    enemy_frames = ExplosionManager.load_frames(folder=boss_folder, size=(160, 160))
+    if enemy_frames:
+        explosion_manager.set_frames_for('enemy', enemy_frames)
+
+# player frames: search under alukset/alus/*/Destroyed for the first valid folder
+player_folder = None
+alukset_alus = os.path.join(os.path.dirname(__file__), 'alukset', 'alus')
+if os.path.isdir(alukset_alus):
+    for candidate in sorted(os.listdir(alukset_alus)):
+        cand = os.path.join(alukset_alus, candidate, 'Destroyed')
+        if os.path.isdir(cand):
+            player_folder = cand
+            break
+
+if player_folder:
+    player_frames = ExplosionManager.load_frames(folder=player_folder, size=(220, 220), pattern=r"(.*)\.png")
+    if player_frames:
+        explosion_manager.set_frames_for('player', player_frames)
+
+# Ensure there is a generic fallback frame list if nothing type-specific was loaded
+if not explosion_manager.frames and os.path.isdir(boss_folder):
+    generic = ExplosionManager.load_frames(folder=boss_folder, size=(200, 200))
+    if generic:
+        explosion_manager.set_frames(generic)
 
 # Report current ammo presets and whether player has shot frames/ammo images
 try:
@@ -157,9 +193,7 @@ except Exception:
 
 # Collision and UI helpers moved to modules for modularity
 USE_SPATIAL_COLLISIONS = True
-from collisions import SpatialHash, apply_impact, separate, _get_pos, get_collision_radius
-from ui import init_enemy_health_bars
-import planets
+
 
 # Debug toggle: draw collision rects and collision radii on screen.
 # Set to False to disable visual debug overlays.
@@ -636,13 +670,21 @@ while run:
                 if isinstance(enemy, BossEnemy):
                     died = enemy.take_hit(1)
                     if died:
-                        # spawn explosion via manager (frames preloaded into manager)
-                        explosion_manager.spawn(enemy.rect.center, fps=24)
+                        # Prefer boss-specific frames, else generic
+                        if explosion_manager.frames_by_type.get('boss'):
+                            explosion_manager.spawn_boss(enemy.rect.center, fps=24)
+                        elif explosion_manager.frames:
+                            explosion_manager.spawn(enemy.rect.center, fps=24)
 
                         enemies.remove(enemy)
                         pistejarjestelma.lisaa_piste(5)
                 else:
-                    # Normaali vihollinen kuolee heti
+                    # Normaali vihollinen kuolee heti -> spawn enemy or generic explosion
+                    if explosion_manager.frames_by_type.get('enemy'):
+                        explosion_manager.spawn_enemy(enemy.rect.center, fps=24)
+                    elif explosion_manager.frames:
+                        explosion_manager.spawn(enemy.rect.center, fps=24)
+
                     enemies.remove(enemy)
                     pistejarjestelma.lisaa_piste(1)
 
