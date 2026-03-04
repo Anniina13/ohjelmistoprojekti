@@ -5,7 +5,7 @@ Alukset_Spritet/
 # If you keep the full Tite24 project under the repo root, ignore it too
 Tite24_2Dpeli/
 testikansio/
-PLAYER_LUOKAT/PlayerInput.py
+
 
 # Common Python artifacts
 __pycache__/
