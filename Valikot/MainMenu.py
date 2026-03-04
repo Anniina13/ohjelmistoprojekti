@@ -1,5 +1,6 @@
 import pygame
 import sys
+from Valikot.SettingsMenu import main as settings_menu_main
 
 # Näytön asetukset
 SCREEN_WIDTH = 1600
@@ -70,10 +71,16 @@ class MainMenu:
         button_font = pygame.font.Font(None, 50)
         small_font = pygame.font.Font(None, 30)
 
+        # Nappien asettelu: spacing ja keskitys
+        button_width = 300
+        button_height = 80
+        button_spacing = 30
+        total_height = 3 * button_height + 2 * button_spacing
+        start_y = SCREEN_HEIGHT // 2 - total_height // 2 + 40
         self.buttons = [
-            Button(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 - 100, 300, 80, "START GAME", LIGHT_BLUE, WHITE, action="start"),
-            Button(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 + 20,  300, 80, "SETTINGS",   LIGHT_BLUE, WHITE, action="settings"),
-            Button(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 + 140, 300, 80, "QUIT",       LIGHT_BLUE, WHITE, action="quit"),
+            Button(SCREEN_WIDTH // 2 - button_width // 2, start_y, button_width, button_height, "START GAME", LIGHT_BLUE, WHITE, action="start"),
+            Button(SCREEN_WIDTH // 2 - button_width // 2, start_y + button_height + button_spacing, button_width, button_height, "SETTINGS", LIGHT_BLUE, WHITE, action="settings"),
+            Button(SCREEN_WIDTH // 2 - button_width // 2, start_y + 2 * (button_height + button_spacing), button_width, button_height, "QUIT", LIGHT_BLUE, WHITE, action="quit"),
         ]
         self.clock = pygame.time.Clock()
         self.running = True
@@ -95,18 +102,15 @@ class MainMenu:
     def draw(self):
         """Piirtää menun"""
         self.screen.fill(DARK_BLUE)
-        
-        # Piirtää otsikko
+        # Piirrä otsikko keskelle
         title_surf = title_font.render("ROCKET GAME", True, WHITE)
-        title_rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, 100))
+        title_rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, 180))
         self.screen.blit(title_surf, title_rect)
-        
-        # Piirtää napit
+        # Piirrä napit
         mouse_pos = pygame.mouse.get_pos()
         for button in self.buttons:
             button.update(mouse_pos)
             button.draw(self.screen)
-        
         pygame.display.update()
     
     def run(self):
@@ -119,7 +123,8 @@ class MainMenu:
                 return "start_game"
             elif action == "settings":
                 print("Asetukset avautuvat...")
-                # Tähän tulee settings-screen myöhemmin
+                settings_menu_main()  # Palaa kun käyttäjä haluaa takaisin
+                # Jatkaa päävalikkoon automaattisesti
             elif action == "quit":
                 print("Peli suljetaan...")
                 return "quit"
