@@ -1,7 +1,4 @@
-# Python program to create a basic settings menu using the pygame_menu module
-
 import pygame
-import pygame_menu as pm 
 
 
 # Oletusnäytön asetukset (käytetään vain koordinaatteihin, ei luoda uutta ikkunaa)
@@ -19,6 +16,15 @@ WHITE = (255, 255, 255)
 
 
 def main():
+    try:
+        import pygame_menu as pm
+    except Exception:
+        pm = None
+
+    if pm is None:
+        _fallback_settings_screen()
+        return
+
     # List that is displayed while selecting the graphics level
     graphics = [("Low", "low"),
                 ("Medium", "medium"),
@@ -132,6 +138,45 @@ def main():
     while not done:
         settings.mainloop(pygame.display.get_surface(), disable_loop=True)
     return
+
+
+def _fallback_settings_screen():
+    """Fallback settings page when pygame_menu is not installed."""
+    screen = pygame.display.get_surface()
+    if screen is None:
+        screen = pygame.display.set_mode((1600, 800))
+
+    if not pygame.font.get_init():
+        pygame.font.init()
+
+    title_font = pygame.font.Font(None, 72)
+    info_font = pygame.font.Font(None, 40)
+    hint_font = pygame.font.Font(None, 32)
+
+    clock = pygame.time.Clock()
+    running = True
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_RETURN):
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                running = False
+
+        screen.fill((22, 28, 40))
+
+        title = title_font.render("SETTINGS", True, (240, 240, 240))
+        info = info_font.render("pygame_menu is not installed.", True, (210, 210, 210))
+        hint = hint_font.render("Press ESC, Enter, or click to return.", True, (170, 190, 220))
+
+        screen.blit(title, title.get_rect(center=(screen.get_width() // 2, 220)))
+        screen.blit(info, info.get_rect(center=(screen.get_width() // 2, 340)))
+        screen.blit(hint, hint.get_rect(center=(screen.get_width() // 2, 410)))
+
+        pygame.display.flip()
+        clock.tick(60)
 
 
 if __name__ == "__main__":

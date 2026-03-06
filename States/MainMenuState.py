@@ -20,6 +20,14 @@ class MainMenuState(GameState):
                 # Keep the menu active if gameplay state is not yet wired.
                 print(f"Could not start PlayState: {exc}")
 
+        elif action == "settings":
+            try:
+                from Valikot.SettingsMenu import main as settings_menu_main
+
+                settings_menu_main()
+            except Exception as exc:
+                print(f"Could not open settings menu: {exc}")
+
         elif action == "quit":
             self.manager.running = False
 
