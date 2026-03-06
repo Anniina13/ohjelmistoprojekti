@@ -46,7 +46,7 @@ class Button:
 class NextLevel:
 	"""Seuraavan tason valikon hallinta"""
 
-	def __init__(self, current_level=1, max_level=None, display_current_level=None, display_next_level=None):
+	def __init__(self, current_level=1, max_level=None, display_current_level=None, display_next_level=None, screen=None):
 		global title_font, button_font, small_font
 
 		if not pygame.get_init():
@@ -54,8 +54,12 @@ class NextLevel:
 		if not pygame.display.get_init():
 			pygame.display.init()
 
-		self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-		pygame.display.set_caption("Rocket Game - Next Level")
+		self.uses_external_screen = screen is not None
+		if self.uses_external_screen:
+			self.screen = screen
+		else:
+			self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+			pygame.display.set_caption("Rocket Game - Next Level")
 
 		title_font = pygame.font.Font(None, 80)
 		button_font = pygame.font.Font(None, 50)
@@ -75,8 +79,8 @@ class NextLevel:
 		self.clock = pygame.time.Clock()
 		self.running = True
 
-	def handle_events(self):
-		for event in pygame.event.get():
+	def handle_events_from(self, events):
+		for event in events:
 			if event.type == pygame.QUIT:
 				self.running = False
 
@@ -88,12 +92,27 @@ class NextLevel:
 
 		return None
 
-	def draw(self):
-		self.screen.fill(DARK_BLUE)
+	def handle_events(self):
+		return self.handle_events_from(pygame.event.get())
+
+	def resolve_action(self, action):
+		if action == "next_level":
+			if self.max_level is not None and self.next_level > self.max_level:
+				return "game_completed"
+			return self.next_level
+		if action == "settings":
+			return "settings"
+		if action == "quit":
+			return "quit"
+		return None
+
+	def draw(self, surface=None):
+		target = self.screen if surface is None else surface
+		target.fill(DARK_BLUE)
 
 		title_surf = title_font.render("LEVEL COMPLETE", True, WHITE)
 		title_rect = title_surf.get_rect(center=(SCREEN_WIDTH // 2, 100))
-		self.screen.blit(title_surf, title_rect)
+		target.blit(title_surf, title_rect)
 
 		level_line = small_font.render(
 			f"Current Level: {self.display_current_level}   Next Level: {self.display_next_level}",
@@ -101,27 +120,21 @@ class NextLevel:
 			WHITE,
 		)
 		level_rect = level_line.get_rect(center=(SCREEN_WIDTH // 2, 180))
-		self.screen.blit(level_line, level_rect)
+		target.blit(level_line, level_rect)
 
 		mouse_pos = pygame.mouse.get_pos()
 		for button in self.buttons:
 			button.update(mouse_pos)
-			button.draw(self.screen)
+			button.draw(target)
 
-		pygame.display.update()
+		if surface is None:
+			pygame.display.update()
 
 	def run(self):
 		while self.running:
-			action = self.handle_events()
-
-			if action == "next_level":
-				if self.max_level is not None and self.next_level > self.max_level:
-					return "game_completed"
-				return self.next_level
-			if action == "settings":
-				return "settings"
-			if action == "quit":
-				return "quit"
+			result = self.resolve_action(self.handle_events())
+			if result is not None:
+				return result
 
 			self.draw()
 			self.clock.tick(60)

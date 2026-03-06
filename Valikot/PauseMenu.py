@@ -54,7 +54,8 @@ class Button:
 class PauseMenu:
     """Pausemenun hallinta"""
     
-    def __init__(self):
+    def __init__(self, screen=None):
+        self.screen = screen
         # Nappien asettelu: spacing ja keskitys, Quit aina alimmaiseksi
         button_width = 300
         button_height = 80
@@ -71,29 +72,44 @@ class PauseMenu:
         ]
         self.clock = pygame.time.Clock()
         self.running = True
-    
-    def handle_events(self):
-        """Käsittelee näppäimistö ja hiiri-eventit"""
-        for event in pygame.event.get():
+
+    def handle_events_from(self, events):
+        """Käsittelee valmiiksi annetut eventit (state-driven käyttö)."""
+        for event in events:
             if event.type == pygame.QUIT:
                 return "quit"
-            
+
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     return "continue"
-            
+
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
                 for button in self.buttons:
                     if button.is_clicked(mouse_pos):
                         return button.action
-        
+
+        return None
+
+    def resolve_action(self, action):
+        if action == "continue":
+            return "continue"
+        if action == "settings":
+            settings_menu_main()
+            return None
+        if action == "quit":
+            return "quit"
         return None
     
-    def draw(self, background_surface):
+    def handle_events(self):
+        """Käsittelee näppäimistö ja hiiri-eventit"""
+        return self.handle_events_from(pygame.event.get())
+    
+    def draw(self, background_surface=None):
         """Piirtää pausemenun"""
-        #print("PauseMenu.draw() called")       #vian etsintä
-        screen = pygame.display.get_surface()
+        screen = self.screen if self.screen is not None else pygame.display.get_surface()
+        if background_surface is not None:
+            screen.blit(background_surface, (0, 0))
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         overlay.set_alpha(128)
         overlay.fill(BLACK)
@@ -107,20 +123,17 @@ class PauseMenu:
         for button in self.buttons:
             button.update(mouse_pos)
             button.draw(screen)
-        pygame.display.update()
+        if self.screen is None:
+            pygame.display.update()
     
     def run(self, background_surface):
         #print("PauseMenu.run() called")        #vian etsintä
         """Pääsilmukka pauselle"""
         while self.running:
             action = self.handle_events()
-            
-            if action == "continue":
-                return "continue"
-            elif action == "settings":
-                settings_menu_main()  # Vie asetuksiin ja palaa kun suljetaan
-            elif action == "quit":
-                return "quit"
+            result = self.resolve_action(action)
+            if result is not None:
+                return result
             
             self.draw(background_surface)
             self.clock.tick(60)

@@ -1,4 +1,5 @@
 from States.GameState import GameState
+import pygame
 import RocketGame
 
 class PlayState(GameState):
@@ -7,6 +8,13 @@ class PlayState(GameState):
         self.game = RocketGame.Game(manager.screen)
 
     def update(self, events):
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                from States.PauseState import PauseState
+                background = self.manager.screen.copy()
+                self.manager.set_state(PauseState(self.manager, self, background_surface=background))
+                return
+
         self.game.update(events)
 
         if getattr(self.game, 'level_completed', False):
