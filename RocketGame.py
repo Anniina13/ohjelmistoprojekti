@@ -22,6 +22,7 @@ from explosion import ExplosionManager
 from collisions import SpatialHash, apply_impact, separate, _get_pos, get_collision_radius
 from ui import init_enemy_health_bars, draw_hud
 import planets
+from Tasot.Taso1 import spawn_wave_taso1
 
 from GameStateManager import GameStateManager
 # Näytön koko
@@ -77,6 +78,8 @@ class Game:
         self.MAX_WAVE = 4
         self.wave_cleared = False
         self.boss_clear_menu_delay_remaining = None
+        self.level_completed = False
+        self.game_over = False
         self.lives = 3
         self.enemy_hit_cooldown = 0
         self.enemy_hit_cooldown_duration = 1000
@@ -181,6 +184,8 @@ class Game:
         self.current_wave = 1
         self.wave_cleared = False
         self.boss_clear_menu_delay_remaining = None
+        self.level_completed = False
+        self.game_over = False
         self.enemies.clear()
         self.enemy_bullets.clear()
         self.muzzles.clear()
@@ -194,17 +199,20 @@ class Game:
     def spawn_wave(self, wave_num):
         """Spawnaa viholliset wave-numeroon perustuen"""
         self.enemies.clear()
-        if wave_num == 1:
-            e1 = StraightEnemy(self.enemy_imgs[0], 200, 200, speed=220)
-            e2 = CircleEnemy(self.enemy_imgs[1], self.tausta_leveys//2+300, self.tausta_korkeus//2, radius=180, angular_speed=2.2)
-            for e in [e1, e2]:
-                apply_hitbox(e, HITBOX_SIZE_ENEMY)
-                self.enemies.append(e)
-        elif wave_num == 4:
-            self.boss = BossEnemy(self.boss_image, pygame.Rect(0,0,self.tausta_leveys,self.tausta_korkeus),
-                                   hp=12, enter_speed=280, move_speed=320, hitbox_size=HITBOX_SIZE_BOSS, hitbox_offset=(0,0))
-            apply_hitbox(self.boss, HITBOX_SIZE_BOSS)
-            self.enemies.append(self.boss)
+        handled = spawn_wave_taso1(
+            game=self,
+            wave_num=wave_num,
+            apply_hitbox=apply_hitbox,
+            hitbox_enemy=HITBOX_SIZE_ENEMY,
+            hitbox_boss=HITBOX_SIZE_BOSS,
+            straight_enemy_cls=StraightEnemy,
+            circle_enemy_cls=CircleEnemy,
+            boss_enemy_cls=BossEnemy,
+            down_enemy_cls=DownEnemy,
+            up_enemy_cls=UpEnemy,
+        )
+        if handled:
+            return
 
         # Muut wavet voidaan lisätä samalla logiikalla
 
@@ -281,7 +289,21 @@ class Game:
         if self.enemy_hit_cooldown > 0:
             self.enemy_hit_cooldown -= self.dt
 
+        # Wave progression: wave 1 -> 2 -> 3 -> boss (4).
+        if len(self.enemies) == 0 and not self.level_completed and self.lives > 0:
+            if self.current_wave < self.MAX_WAVE:
+                self.current_wave += 1
+                self.enemy_bullets.clear()
+                self.muzzles.clear()
+                self.spawn_wave(self.current_wave)
+            else:
+                # Boss beaten: level is complete.
+                self.level_completed = True
+                self.running = False
+                return
+
         if self.lives <= 0:
+            self.game_over = True
             self.running = False
 
         # Räjähdykset
