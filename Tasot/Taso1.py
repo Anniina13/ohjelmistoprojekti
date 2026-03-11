@@ -6,6 +6,10 @@ Sisaltaa wave 1-3 vihollisaallot ja boss-wave (wave 4).
 import pygame
 import random
 
+def _set_enemy_hp(enemy, hp):
+	enemy.hp = hp
+	enemy.max_hp = hp
+	return enemy
 
 def spawn_wave_taso1(
 	game,
@@ -18,6 +22,8 @@ def spawn_wave_taso1(
 	boss_enemy_cls,
 	down_enemy_cls,
 	up_enemy_cls,
+	zigzag_enemy_cls=None,
+    chase_enemy_cls=None,
 ):
 	"""Spawn Level 1 enemies for the requested wave.
 
@@ -34,6 +40,7 @@ def spawn_wave_taso1(
 			angular_speed=2.2,
 		)
 		for enemy in (e1, e2):
+			_set_enemy_hp(enemy, 1)
 			apply_hitbox(enemy, hitbox_enemy)
 			game.enemies.append(enemy)
 		return True
@@ -55,6 +62,7 @@ def spawn_wave_taso1(
 				y = random.randint(80, game.tausta_korkeus - 80)
 
 			enemy = straight_enemy_cls(game.enemy_imgs[i % len(game.enemy_imgs)], x, y, speed=220)
+			_set_enemy_hp(enemy, 1)
 			if hasattr(enemy, "vel"):
 				v = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1))
 				if v.length_squared() == 0:
@@ -71,6 +79,7 @@ def spawn_wave_taso1(
 			x = spacing * (i + 1)
 			y = 30
 			enemy = down_enemy_cls(game.enemy_imgs[i % len(game.enemy_imgs)], x, y, speed=250)
+			_set_enemy_hp(enemy, 1)
 			apply_hitbox(enemy, hitbox_enemy)
 			game.enemies.append(enemy)
 
@@ -78,6 +87,7 @@ def spawn_wave_taso1(
 			x = spacing * (i + 3.5)
 			y = game.tausta_korkeus - 30
 			enemy = up_enemy_cls(game.enemy_imgs[(i + 3) % len(game.enemy_imgs)], x, y, speed=250)
+			_set_enemy_hp(enemy, 1)
 			apply_hitbox(enemy, hitbox_enemy)
 			game.enemies.append(enemy)
 		return True

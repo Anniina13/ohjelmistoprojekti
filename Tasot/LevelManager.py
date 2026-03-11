@@ -28,6 +28,7 @@ class LevelManager:
         self.screen = screen
         self.num_levels = num_levels
         self.current_level_index = 0
+        self.total_score = 0
 
         # Create level instances (each Game instance for a level)
         self.levels = [Game(screen, level_number=i + 1) for i in range(num_levels)]
@@ -45,12 +46,20 @@ class LevelManager:
         Returns:
             bool: True if there's a next level, False if all levels completed.
         """
+        # Tallenna nykyisen tason pisteet yhteissaldoon ennen siirtymää
+        if hasattr(self.current_level, "pistejarjestelma"):
+            self.total_score += int(getattr(self.current_level.pistejarjestelma, "pisteet", 0))
+
         if self.current_level_index < self.num_levels - 1:
             self.current_level_index += 1
             self.current_level = self.levels[self.current_level_index]
+
+        # Näytä uuden tason pisteinä tähän asti kerätty yhteissaldo
+            if hasattr(self.current_level, "pistejarjestelma"):
+                self.current_level.pistejarjestelma.pisteet = self.total_score
+
             return True
         else:
-            # All levels completed
             self.all_levels_completed = True
             return False
 

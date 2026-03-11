@@ -20,10 +20,11 @@ class Enemy(pygame.sprite.Sprite):
     Tämän luokan ilmentymät ylläpitävät `image`/`rect`-attribuutteja ja tarjoavat
     apufunktiot vaimeneville törmäysvärähtelyille sekä sujuvalle näyttökulman päivitykselle.
     """
-    def __init__(self, image: pygame.Surface, x: float, y: float):
+    def __init__(self, image: pygame.Surface, x: float, y: float, hp: int = 1):
         super().__init__()
         self.image = image
         self.rect = self.image.get_rect(center=(int(x), int(y)))
+        self.hp = hp
         # Default collision radius derived from sprite size. Can be overridden
         # externally (e.g. spawn logic) by setting `entity.collision_radius`.
         try:
@@ -185,8 +186,8 @@ class Enemy(pygame.sprite.Sprite):
 
 class StraightEnemy(Enemy):
     """Lentää suoraan valittuun suuntaan"""
-    def __init__(self, image, x, y, speed=220):
-        super().__init__(image, x, y)
+    def __init__(self, image, x, y, speed=220, hp=1):
+        super().__init__(image, x, y, hp)
         angle = random.uniform(0, math.tau)
         self.vx = math.cos(angle) * speed
         self.vy = math.sin(angle) * speed
@@ -206,8 +207,8 @@ class StraightEnemy(Enemy):
 
 class CircleEnemy(Enemy):
     """Kiertää pisteen ympäri."""
-    def __init__(self, image, center_x, center_y, radius=160, angular_speed=2.0):
-        super().__init__(image, center_x + radius, center_y)
+    def __init__(self, image, center_x, center_y, radius=160, angular_speed=2.0, hp=1):
+        super().__init__(image, center_x + radius, center_y, hp)
         self.center = pygame.Vector2(center_x, center_y)
         self.radius = radius
         self.angular_speed = angular_speed
@@ -224,8 +225,8 @@ class CircleEnemy(Enemy):
 
 class DownEnemy(Enemy):
     """Lentää ylhäältä alas ja takaisin."""
-    def __init__(self, image, x, y, speed=200):
-        super().__init__(image, x, y)
+    def __init__(self, image, x, y, speed=200, hp=1):
+        super().__init__(image, x, y, hp)
         self.speed = speed
         self.vy = speed  # Liikkuu alas
 
@@ -245,8 +246,8 @@ class DownEnemy(Enemy):
 
 class UpEnemy(Enemy):
     """Lentää alhaalta ylös ja takaisin."""
-    def __init__(self, image, x, y, speed=200):
-        super().__init__(image, x, y)
+    def __init__(self, image, x, y, speed=200, hp=1):
+        super().__init__(image, x, y, hp)
         self.speed = speed
         self.vy = -speed  # Liikkuu ylös (negatiivinen)
 
@@ -262,3 +263,65 @@ class UpEnemy(Enemy):
                 self.rect.bottom = world_rect.bottom
                 self.vy = -self.speed  # Käänny ylös
             self.rect.clamp_ip(world_rect)
+
+class ZigZagEnemy(Enemy):
+    """Liikkuu siksakissa ylös-alas."""
+    def __init__(self, image, x, y, speed=260, amplitude=120, frequency=3.0, hp=1):
+        super().__init__(image, x, y, hp)
+        self.start_x = x
+        self.pos = pygame.Vector2(x, y)
+        self.speed = speed
+        self.amplitude = amplitude
+        self.frequency = frequency
+        self.time = 0.0
+        self.vy_dir = 1  # 1 = alas, -1 = ylös
+
+    def update(self, dt_ms, player=None, world_rect=None):
+        dt = dt_ms / 1000.0
+        self.time += dt
+
+        self.pos.y += self.speed * self.vy_dir * dt
+        self.pos.x = self.start_x + math.sin(self.time * self.frequency) * self.amplitude
+
+        self.rect.center = (int(self.pos.x), int(self.pos.y))
+
+        if world_rect is not None:
+            if self.rect.top <= world_rect.top:
+                self.rect.top = world_rect.top
+                self.vy_dir = 1
+            elif self.rect.bottom >= world_rect.bottom:
+                self.rect.bottom = world_rect.bottom
+                self.vy_dir = -1
+
+            self.pos = pygame.Vector2(self.rect.center)
+
+class ChaseEnemy(Enemy):
+    """Hakeutuu pelaajaa kohti."""
+    
+    def __init__(self, image, x, y, speed=220, hp=1):
+        super().__init__(image, x, y, hp)
+        self.pos = pygame.Vector2(x, y)
+        self.speed = speed
+        self.hit_player_cooldown = 0.0
+
+    def update(self, dt_ms, player=None, world_rect=None):
+        dt = dt_ms / 1000.0
+
+        # vähennä cooldownia
+        if self.hit_player_cooldown > 0:
+            self.hit_player_cooldown -= dt
+
+        # liikkuu kohti pelaajaa vain jos cooldown ei ole päällä
+        if player is not None and self.hit_player_cooldown <= 0:
+            target = pygame.Vector2(player.rect.center)
+            direction = target - self.pos
+
+            if direction.length_squared() > 0:
+                direction = direction.normalize()
+                self.pos += direction * self.speed * dt
+
+        self.rect.center = (int(self.pos.x), int(self.pos.y))
+
+        if world_rect is not None:
+            self.rect.clamp_ip(world_rect)
+            self.pos = pygame.Vector2(self.rect.center)

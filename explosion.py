@@ -109,7 +109,8 @@ class ExplosionManager:
         self.frames_by_type = {
             'boss': [],
             'enemy': [],
-            'player': []
+            'player': [],
+            'hit': []
         }
 
     @staticmethod
@@ -219,6 +220,14 @@ class ExplosionManager:
     def spawn_player(self, pos, fps=20):
         """Spawn pelaajan räjähdys."""
         self.spawn_for('player', pos, fps=fps)
+    
+    def spawn_hit(self, pos, fps=24):
+        frames = self.frames_by_type.get('hit')
+        if not frames:
+            frames = self.frames_by_type.get('enemy') or self.frames
+        if not frames:
+            return
+        self.explosions.append(Explosion(frames, pos, fps=fps))
 
     def load_frames_for(self, kind, folder=None, size=(200, 200), pattern=r"000_Explosion1_(\d+)_0\.png"):
         """Lataa ja asettaa kehykset tyypille `kind`.

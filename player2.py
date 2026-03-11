@@ -229,6 +229,9 @@ class Player2(pygame.sprite.Sprite):
         self.pos = pygame.math.Vector2(x, y)
         self.vel = pygame.math.Vector2(0, 0)
         self.angle = 0.0
+        self.collision_bounce_locked = False
+        self.collision_bounce_timer = 0.0
+        self.collision_bounce_duration = 0.18
 
         # Default collision radius (can be adjusted externally)
         try:
@@ -284,7 +287,20 @@ class Player2(pygame.sprite.Sprite):
         self.update_hit_animation(dt)
         self.handle_attack_animation(dt)
         self.handle_animation(dt)
-        self.handle_movement(dt)
+        if getattr(self, 'collision_bounce_locked', False):
+            dt_s = dt / 1000.0
+
+            self.collision_bounce_timer -= dt_s
+            if self.collision_bounce_timer <= 0:
+                self.collision_bounce_locked = False
+                self.collision_bounce_timer = 0
+                self.vel = pygame.Vector2(0, 0)   # STOP floattaus
+
+            # liu'u knockbackin mukana
+            self.pos += self.vel * dt_s
+            self.rect.center = (int(self.pos.x), int(self.pos.y))
+        else:
+            self.handle_movement(dt)
 
 
 
