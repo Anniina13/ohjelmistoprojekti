@@ -138,7 +138,11 @@ class Player(pygame.sprite.Sprite):
         self.handle_attack_animation(dt)
         self.handle_animation(dt)
         # skip movement while collision bounce lock is active
-        if not getattr(self, 'collision_bounce_locked', False):
+        if getattr(self, 'collision_bounce_locked', False):
+            dt_s = dt / 1000.0
+            self.pos += self.vel * dt_s
+            self.rect.center = (int(self.pos.x), int(self.pos.y))
+        else:
             self.handle_movement(dt)
 
     def update_destroyed_animation(self, dt):

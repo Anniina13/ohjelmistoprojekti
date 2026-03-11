@@ -18,6 +18,8 @@ def spawn_wave_taso3(
 	boss_enemy_cls,
 	down_enemy_cls,
 	up_enemy_cls,
+	zigzag_enemy_cls=None,
+    chase_enemy_cls=None,
 ):
 	"""Spawn Level 3 enemies for the requested wave.
 

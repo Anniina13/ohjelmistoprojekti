@@ -7,9 +7,10 @@ Uses: EnemyHelpers for specific explosion spawn when needed
 
 import sys
 import os
+from Enemies import enemy
 import pygame
 import random
-from Enemies.enemy import StraightEnemy, CircleEnemy, DownEnemy, UpEnemy
+from Enemies.enemy import StraightEnemy, CircleEnemy, DownEnemy, UpEnemy, ZigZagEnemy, ChaseEnemy
 from boss_enemy import BossEnemy
 from points import Points
 sys.path.append(os.path.dirname(__file__))
@@ -143,11 +144,21 @@ class Game:
         self.ss = SpriteSettings(base_path=os.path.join(base_path, 'enemy-sprite'))
         self.ss.load_all()
 
-        # Boss kuva
+        # Boss-kuva tason mukaan
+        boss_files = {
+            1: "12.png",
+            2: "13.png",   
+            #3: "14.png",
+            #4: "15.png",
+            #5: "16.png",
+}
+
+        boss_file = boss_files.get(self.level_number, "12.png")
+
         self.boss_image = pygame.transform.scale(
-            pygame.image.load(os.path.join(viholliset_path, "12.png")).convert_alpha(),
+            pygame.image.load(os.path.join(viholliset_path, boss_file)).convert_alpha(),
             (320, 320)
-        )
+)
 
         # Planeetat
         self.planeetat = [
@@ -193,6 +204,17 @@ class Game:
                     self.explosion_manager.set_frames_for('enemy', generic_frames)
                 if not self.explosion_manager.frames_by_type.get('boss'):
                     self.explosion_manager.set_frames_for('boss', generic_frames)
+                hit_folder = os.path.join(
+                base_path,
+                "enemy-sprite",
+                "PNG_Animations",
+                "Shots",
+                "Shot3",
+                "shot3_exp2"
+        )
+                hit_frames = ExplosionManager.load_frames(folder=hit_folder, size=(64, 64))
+                if hit_frames:
+                    self.explosion_manager.set_frames_for('hit', hit_frames)
         except Exception:
             pass
 
@@ -261,6 +283,8 @@ class Game:
                 boss_enemy_cls=BossEnemy,
                 down_enemy_cls=DownEnemy,
                 up_enemy_cls=UpEnemy,
+                zigzag_enemy_cls=ZigZagEnemy,
+                chase_enemy_cls=ChaseEnemy,
             )
             if handled:
                 return
@@ -294,19 +318,41 @@ class Game:
             for enemy in list(self.enemies):
                 if bullet.rect.colliderect(enemy.rect):
                     impact_pos = bullet.rect.center
-                    self.player.weapons.bullets.remove(bullet)
+
+                    if bullet in self.player.weapons.bullets:
+                        self.player.weapons.bullets.remove(bullet)
+
                     if isinstance(enemy, BossEnemy):
-                        died = enemy.take_hit(1)
+                        damage = getattr(bullet, "damage", 1)
+                        died = enemy.take_hit(damage)
+
                         if died:
                             self.explosion_manager.spawn_boss(enemy.rect.center, fps=24)
-                            self.enemies.remove(enemy)
-                            self.pistejarjestelma.lisaa_piste(5)
+                            if enemy in self.enemies:
+                                self.enemies.remove(enemy)
+                                self.pistejarjestelma.lisaa_piste(5)
+                        else:
+                            self.explosion_manager.spawn_hit(impact_pos, fps=24)
+
+                    else:
+                        damage = getattr(bullet, "damage", 1)
+
+                        if hasattr(enemy, "hp"):
+                            enemy.hp -= damage
+                            if enemy.hp <= 0:
+                                self.explosion_manager.spawn_enemy(enemy.rect.center, fps=24)
+                                if enemy in self.enemies:
+                                    self.enemies.remove(enemy)
+                                self.pistejarjestelma.lisaa_piste(1)
+                            else:
+                                self.explosion_manager.spawn_hit(impact_pos, fps=24)
                         else:
                             self.explosion_manager.spawn_enemy(impact_pos, fps=24)
-                    else:
-                        self.explosion_manager.spawn_enemy(impact_pos, fps=24)
-                        self.enemies.remove(enemy)
-                        self.pistejarjestelma.lisaa_piste(1)
+                    
+                            if enemy in self.enemies:
+                                self.enemies.remove(enemy)
+                            self.pistejarjestelma.lisaa_piste(1)
+
                     break
 
         for b in list(self.enemy_bullets):
@@ -335,16 +381,39 @@ class Game:
                 if self.player.rect.colliderect(enemy.rect):
                     self.player.health = max(0, int(getattr(self.player, 'health', self.lives)) - 1)
                     self.lives = self.player.health
+
                     try:
                         if hasattr(self.player, 'trigger_hit_animation'):
                             self.player.trigger_hit_animation()
                     except Exception:
                         pass
+
+                    player_center = pygame.Vector2(self.player.rect.center)
+                    enemy_center = pygame.Vector2(enemy.rect.center)
+                    direction = player_center - enemy_center
+
+                    if direction.length_squared() == 0:
+                        direction = pygame.Vector2(1, 0)
+                    else:
+                        direction = direction.normalize()
+
+                # Smooth knockback pelaajalle
+                    if hasattr(self.player, "vel"):
+                        self.player.vel = direction * 420
+
+                # Lukitse ohjaus hetkeksi, jotta knockback ehtii näkyä
+                    if hasattr(self.player, "collision_bounce_locked"):
+                        self.player.collision_bounce_locked = True
+                        self.player.collision_bounce_timer = 0.18
+                    # estä vihollista jahtaamasta heti takaisin
+                    if hasattr(enemy, "hit_player_cooldown"):
+                        enemy.hit_player_cooldown = 8
+
                     self.enemy_hit_cooldown = self.enemy_hit_cooldown_duration
                     break
-
         if self.enemy_hit_cooldown > 0:
             self.enemy_hit_cooldown -= self.dt
+        
 
         # Wave progression: wave 1 -> 2 -> 3 -> boss (4).
         if len(self.enemies) == 0 and not self.level_completed and self.lives > 0:

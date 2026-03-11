@@ -18,6 +18,8 @@ def spawn_wave_taso5(
 	boss_enemy_cls,
 	down_enemy_cls,
 	up_enemy_cls,
+	zigzag_enemy_cls=None,
+    chase_enemy_cls=None,
 ):
 	"""Spawn Level 5 enemies for the requested wave.
 
