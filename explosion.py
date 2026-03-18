@@ -169,6 +169,32 @@ class ExplosionManager:
 
         return frames
 
+    @staticmethod
+    def make_dark_background_transparent(frames, max_r=85, max_g=55, max_b=55):
+        """Poistaa tumman punaruskean taustan alpha-kanavalla.
+
+        Tämä on suunnattu erityisesti Explosions_dynamiteStyle-kuville,
+        joissa tausta ei ole valmiiksi täysin läpinäkyvä.
+        """
+        processed = []
+        for surface in frames or []:
+            img = surface.copy()
+            width, height = img.get_size()
+            for y in range(height):
+                for x in range(width):
+                    r, g, b, a = img.get_at((x, y))
+                    if (
+                        a > 0
+                        and r <= max_r
+                        and g <= max_g
+                        and b <= max_b
+                        and r >= g
+                        and r >= b
+                    ):
+                        img.set_at((x, y), (r, g, b, 0))
+            processed.append(img)
+        return processed
+
     def set_frames(self, frames):
         """Aseta (tai vaihda) käytettävät kehykset.
 
@@ -248,12 +274,36 @@ class ExplosionManager:
         boss_explosion_size = (150, 150)
         enemy_explosion_size = (60, 60)
         base = os.path.join(os.path.dirname(__file__), 'enemy-sprite', 'PNG_Parts&Spriter_Animation', 'Explosions')
-        # boss: käytä Explosion1 -kansion kehyksiä oletuksena (suurikokoinen)
-        boss_folder = os.path.join(base, 'Explosion1')
-        self.load_frames_for('boss', folder=boss_folder, size=(boss_explosion_size))
-        # enemy: sama paikka pienemmällä koossa
-        enemy_folder = os.path.join(base, 'Explosion1')
-        self.load_frames_for('enemy', folder=enemy_folder, size=(enemy_explosion_size))
+        # boss: käytä samaa dynamite-tyylin slice1..slice9 -animaatiota kuin enemy
+        boss_folder = os.path.join(os.path.dirname(__file__), 'images', 'Explosions_dynamiteStyle')
+        boss_frames = self.load_frames_for(
+            'boss',
+            folder=boss_folder,
+            size=boss_explosion_size,
+            pattern=r"slice(\d+)\.png"
+        )
+        if not boss_frames:
+            # Fallback vanhaan Explosion1-settiin jos dynamite-kansiota ei löydy.
+            fallback_boss_folder = os.path.join(base, 'Explosion1')
+            self.load_frames_for('boss', folder=fallback_boss_folder, size=boss_explosion_size)
+        else:
+            boss_frames = self.make_dark_background_transparent(boss_frames)
+            self.set_frames_for('boss', boss_frames)
+        # enemy: käytä dynamite-tyylin slice1..slice9 -animaatiota
+        enemy_folder = os.path.join(os.path.dirname(__file__), 'images', 'Explosions_dynamiteStyle')
+        enemy_frames = self.load_frames_for(
+            'enemy',
+            folder=enemy_folder,
+            size=enemy_explosion_size,
+            pattern=r"slice(\d+)\.png"
+        )
+        if not enemy_frames:
+            # Fallback vanhaan Explosion1-settiin jos dynamite-kansiota ei löydy.
+            fallback_enemy_folder = os.path.join(base, 'Explosion1')
+            self.load_frames_for('enemy', folder=fallback_enemy_folder, size=enemy_explosion_size)
+        else:
+            enemy_frames = self.make_dark_background_transparent(enemy_frames)
+            self.set_frames_for('enemy', enemy_frames)
         # player: use dedicated explosion sprites so the effect is visually separate
         # from the ship's own Destroyed animation drawn by Player/Player2.
         player_folder = os.path.join(base, 'Explosion1')

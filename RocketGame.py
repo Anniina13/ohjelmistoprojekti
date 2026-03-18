@@ -341,7 +341,7 @@ class Game:
                         died = enemy.take_hit(damage)
 
                         if died:
-                            self.explosion_manager.spawn_boss(enemy.rect.center, fps=24)
+                            self.explosion_manager.spawn_boss(enemy.rect.center, fps=20)
                             if enemy in self.enemies:
                                 self.enemies.remove(enemy)
                                 self.pistejarjestelma.lisaa_piste(5)
@@ -354,14 +354,14 @@ class Game:
                         if hasattr(enemy, "hp"):
                             enemy.hp -= damage
                             if enemy.hp <= 0:
-                                self.explosion_manager.spawn_enemy(enemy.rect.center, fps=24)
+                                self.explosion_manager.spawn_enemy(enemy.rect.center, fps=20)
                                 if enemy in self.enemies:
                                     self.enemies.remove(enemy)
                                 self.pistejarjestelma.lisaa_piste(1)
                             else:
                                 self.explosion_manager.spawn_hit(impact_pos, fps=24)
                         else:
-                            self.explosion_manager.spawn_enemy(impact_pos, fps=24)
+                            self.explosion_manager.spawn_enemy(impact_pos, fps=20)
                     
                             if enemy in self.enemies:
                                 self.enemies.remove(enemy)
