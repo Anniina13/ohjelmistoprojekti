@@ -1,6 +1,6 @@
 """
 Module: RocketGame.py
-Dependencies: pygame, os, random, SpriteSettings, PLAYER_LUOKAT.Player (Player), EnemyAI (StraightEnemy, CircleEnemy), boss_enemy (BossEnemy), Points
+Dependencies: pygame, os, random, SpriteSettings, PLAYER_LUOKAT.Player2 (Player2), EnemyAI (StraightEnemy, CircleEnemy), boss_enemy (BossEnemy), Points
 Provides: main game loop, loads sprites and spawns enemies/boss, handles collisions and draws
 Uses: EnemyHelpers for specific explosion spawn when needed
 """
@@ -14,7 +14,6 @@ from Enemies.enemy import StraightEnemy, CircleEnemy, DownEnemy, UpEnemy, ZigZag
 from boss_enemy import BossEnemy
 from points import Points
 sys.path.append(os.path.dirname(__file__))
-from Player import Player
 from player2 import Player2
 from Valikot.NextLevel import NextLevel
 from Valikot.gameOver import GameOverScreen
@@ -233,10 +232,7 @@ class Game:
         player_start_y = self.tausta_korkeus // 2
         player_scale_factor = 1
 
-        try:
-            self.player = Player2(player_ship, player_scale_factor, player_start_x, player_start_y, max_health=5)
-        except Exception:
-            self.player = Player(player_scale_factor, [], player_start_x, player_start_y, boost_frames=[], max_health=5)
+        self.player = Player2(player_ship, player_scale_factor, player_start_x, player_start_y, max_health=5)
 
         apply_hitbox(self.player, HITBOX_SIZE_PLAYER)
         self.lives = int(getattr(self.player, 'health', getattr(self.player, 'max_health', 5)))

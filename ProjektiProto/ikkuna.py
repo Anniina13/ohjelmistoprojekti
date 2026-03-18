@@ -48,22 +48,21 @@ for _ in range(len(planeetat)):
     planeetta_paikat.append((x, y))
 
 # -----------------------------
-# Pelaajan (Player) lataus ja asetukset
-# - Lataa pelaajan sprite-tiedostot tarvittaessa
-# - Player-olio maailman keskelle
+# Pelaajan (Player2) lataus ja asetukset
+# - Lataa pelaajan sprite-tiedostot dynaamisesti aluksen nimen perusteella
+# - Player2-olio maailman keskelle
 # -----------------------------
-from player import Player
-
-# Sprite loading removed; use project-specific ship folders instead
-frames = []
-boost_frames = []
-
-
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from player2 import Player2
 
 # Luo pelaaja maailman keskelle
 player_start_x = tausta_leveys // 2
 player_start_y = tausta_korkeus // 2
-player = Player(frames, player_start_x, player_start_y, boost_frames=boost_frames)
+player_ship = 'FIGHTER'
+player_scale_factor = 1
+player = Player2(player_ship, player_scale_factor, player_start_x, player_start_y, max_health=5)
 
 # Kello frameratea ja animaatiota varten
 clock = pygame.time.Clock()
