@@ -1,6 +1,8 @@
 import pygame
 import math
 import os
+from Physics.core import RigidBody
+from Physics.forces import Thrust, Drag
 from PLAYER_LUOKAT.PlayerAnimation import PlayerAnimation
 from PLAYER_LUOKAT.PlayerWeapons import PlayerWeapons
 from PLAYER_LUOKAT.PlayerInput import PlayerInput
@@ -10,9 +12,19 @@ from PLAYER_LUOKAT.PlayerInput import PlayerInput
 PLAYER_DEFAULT_COLLISION_FACTOR = 0.5  # fraction of max(width,height)
 PLAYER_MIN_COLLISION_RADIUS = 2
 
-class Player(pygame.sprite.Sprite):
+class Player(RigidBody, pygame.sprite.Sprite):
+    """
+    Player spaceship - combines pygame.sprite.Sprite with Physics.RigidBody.
+    
+    Handles movement, weapons, animations, and physics simulation.
+    Uses RigidBody for position, velocity, and physics-based forces.
+    """
+    
     def __init__(self, scale_factor, frames, x, y, boost_frames=None):
-        super().__init__()
+        # Initialize RigidBody with mass 2.0 (heavier than enemies)
+        RigidBody.__init__(self, x=x, y=y, mass=2.0)
+        pygame.sprite.Sprite.__init__(self)
+        
         self.scale_factor = scale_factor
         self.input = PlayerInput()
         self.animation = PlayerAnimation(scale_factor)
@@ -31,19 +43,24 @@ class Player(pygame.sprite.Sprite):
         self.frame_index = 0
         self.current_anim = 'move'
         self.image = self.animaatio[self.current_anim][self.frame_index]
-        self.rect = self.image.get_rect(center=(x, y))
-        self.pos = pygame.math.Vector2(x, y)
-        # Default collision radius for the player (can be overridden externally)
+        self.rect = self.image.get_rect(center=(int(self.pos.x), int(self.pos.y)))
+        
+        # Setup physics constraints
         try:
             self.collision_radius = max(PLAYER_MIN_COLLISION_RADIUS, int(max(self.rect.width, self.rect.height) * PLAYER_DEFAULT_COLLISION_FACTOR))
         except Exception:
             self.collision_radius = PLAYER_MIN_COLLISION_RADIUS
-        self.vel = pygame.math.Vector2(0, 0)
+        
+        # Physics parameters
+        self.max_speed = 400.0
         self.angle = 0.0
         self.turn_speed = 180.0
         self.accel = 300.0
-        self.max_speed = 400.0
         self.brake_decel = 500.0
+        
+        # Add slight air drag to player movement
+        self.add_force(Drag(coefficient=0.05))
+        
         self.anim_timer = 0
         self.anim_speed = 100
 
@@ -192,31 +209,46 @@ class Player(pygame.sprite.Sprite):
             self.image = frames[self.frame_index]
 
     def handle_movement(self, dt):
+        """
+        Update player movement using physics forces.
+        
+        Converts input to Thrust forces and calls RigidBody.update() for physics simulation.
+        """
         dt_s = dt / 1000.0
+        
+        # Rotation (angle-based, not physics-affected)
         if self.input.turnLeft:
             self.angle += self.turn_speed * dt_s
         if self.input.turnRight:
             self.angle -= self.turn_speed * dt_s
+        
+        # Thrust: add force if moving forward
         if self.input.moveUp:
-            # thrust direction: use same angle convention as drawing
             rad = math.radians(self.angle)
-            thrust = pygame.math.Vector2(math.cos(rad), math.sin(rad)) * self.accel * dt_s
-            self.vel += thrust
-            if self.vel.length() > self.max_speed:
-                self.vel.scale_to_length(self.max_speed)
+            direction = (math.cos(rad), math.sin(rad))
+            self.add_force(Thrust(direction, magnitude=self.accel))
+        
+        # Braking: apply reverse thrust or just let drag slow down
         if self.input.moveDown:
             speed = self.vel.length()
             if speed > 0:
+                # Apply reverse impulse instead of gradual deceleration
+                # Method 1: Use brake_decel directly on velocity
                 dec = self.brake_decel * dt_s
                 new_speed = max(0.0, speed - dec)
                 if new_speed == 0:
-                    self.vel = pygame.math.Vector2(0, 0)
+                    self.vel = pygame.Vector2(0, 0)
                 else:
                     self.vel.scale_to_length(new_speed)
-        self.pos += self.vel * dt_s
+        
+        # Physics update: forces -> velocity -> position
+        RigidBody.update(self, dt_s)
+        
+        # Sync rect with new position
         self.rect.center = (int(self.pos.x), int(self.pos.y))
-
+    
     def move(self, dx, dy, world_w, world_h):
+        """Manually move player and keep in bounds."""
         self.rect.x += dx
         self.rect.y += dy
         self.pos.x = self.rect.centerx

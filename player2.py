@@ -58,13 +58,6 @@ class Player2(pygame.sprite.Sprite):
 
 
 
-        # helper: etsi ensimmäinen olemassa oleva kansio
-        def first_exist(*paths):
-            for p in paths:
-                if p and os.path.isdir(p):
-                    return p
-            return None
-
         # Etsi laajemmin mahdollisia sprite-kansioita. Käytetään ensin
         # tyypillisiä polkuja, sitten etsitään `alukset`-kansiosta hakusanalla
         # löytyvää kansiota (esim. 'FIGHTER-SPRITES').
@@ -84,7 +77,16 @@ class Player2(pygame.sprite.Sprite):
                 if ship_name.lower() in cand.lower():
                     candidates.append(os.path.join(alukset_root, cand))
 
-        base_folder = first_exist(*candidates)
+        base_folders = []
+        seen = set()
+        for cand in candidates:
+            if not cand or not os.path.isdir(cand):
+                continue
+            key = os.path.normcase(os.path.abspath(cand))
+            if key in seen:
+                continue
+            seen.add(key)
+            base_folders.append(cand)
 
 
 
@@ -98,12 +100,14 @@ class Player2(pygame.sprite.Sprite):
         # skaalatuista pygame.Surface-olioista.
         def load_frames_from(subpath, pattern_prefix=None, size_scale=1.0):
             frames = []
-            if not base_folder:
+            if not base_folders:
                 return frames
 
-            # 1) tarkista alikansio (esim. base/Move)
-            folder = os.path.join(base_folder, subpath)
-            if os.path.isdir(folder):
+            # 1) tarkista alikansio (esim. base/Move) jokaisessa ehdokaskansiossa
+            for base_folder in base_folders:
+                folder = os.path.join(base_folder, subpath)
+                if not os.path.isdir(folder):
+                    continue
                 names = sorted([f for f in os.listdir(folder) if f.lower().endswith('.png')])
                 for fname in names:
                     full = os.path.join(folder, fname)
@@ -111,23 +115,24 @@ class Player2(pygame.sprite.Sprite):
                     w = max(1, int(img.get_width() * self.scale_factor * size_scale))
                     h = max(1, int(img.get_height() * self.scale_factor * size_scale))
                     frames.append(pygame.transform.scale(img, (w, h)))
-                return frames
+                if frames:
+                    return frames
 
-            # 2) jos alikansiota ei ole, etsi base_folderista tiedostoja, joiden
-            # nimi alkaa subpath + '_' (esim. 'Destroyed_1.png' tai 'Shot1_1.png')
-            candidates = []
-            for fname in sorted(os.listdir(base_folder)):
-                if not fname.lower().endswith('.png'):
+            # 2) jos alikansiota ei ole, etsi tiedostoja, joiden nimi alkaa
+            # subpath + '_' (esim. 'Destroyed_1.png' tai 'Shot1_1.png').
+            for base_folder in base_folders:
+                prefixed = []
+                for fname in sorted(os.listdir(base_folder)):
+                    if not fname.lower().endswith('.png'):
+                        continue
+                    low = fname.lower()
+                    prefix = subpath.lower()
+                    if low.startswith(prefix + '_') or low == prefix + '.png':
+                        prefixed.append(fname)
+
+                if not prefixed:
                     continue
-                low = fname.lower()
-                prefix = subpath.lower()
-                # salli vain muodot: 'prefix_number.png' ja 'prefix.png'
-                if low.startswith(prefix + '_') or low == prefix + '.png':
-                    candidates.append(fname)
 
-            # jos löytyi tiedostoja, ladataan ne järjestyksessä
-            if candidates:
-                # yritä järjestää numeerisen indeksin mukaan jos mahdollista
                 def sort_key(fn):
                     import re
                     mm = re.search(r"(\d+)", fn)
@@ -135,12 +140,14 @@ class Player2(pygame.sprite.Sprite):
                         return int(mm.group(1))
                     return fn
 
-                for fname in sorted(candidates, key=sort_key):
+                for fname in sorted(prefixed, key=sort_key):
                     full = os.path.join(base_folder, fname)
                     img = pygame.image.load(full).convert_alpha()
                     w = max(1, int(img.get_width() * self.scale_factor * size_scale))
                     h = max(1, int(img.get_height() * self.scale_factor * size_scale))
                     frames.append(pygame.transform.scale(img, (w, h)))
+                if frames:
+                    return frames
 
             return frames
 
@@ -248,6 +255,7 @@ class Player2(pygame.sprite.Sprite):
         self.destroyed_anim_timer = 0
         self.destroyed_anim_speed = 60
         self.destroyed_frame_index = 0
+        self.destroyed_angle = 0.0
 
         self.hit_anim_timer = 0
         self.hit_anim_duration = 200
@@ -281,6 +289,10 @@ class Player2(pygame.sprite.Sprite):
 
 
     def update(self, dt):
+        if self.is_destroyed:
+            self.update_destroyed_animation(dt)
+            return
+
         self.input.update()
         self.update_destroyed_animation(dt)
         self.weapons.update(dt)
@@ -519,8 +531,9 @@ class Player2(pygame.sprite.Sprite):
     def draw(self, screen, cam_x, cam_y):
         if self.is_destroyed and self.destroyed_frames:
             destroyed_sprite = self.destroyed_frames[self.destroyed_frame_index]
-            destroyed_rect = destroyed_sprite.get_rect(center=(self.pos.x - cam_x, self.pos.y - cam_y))
-            screen.blit(destroyed_sprite, destroyed_rect.topleft)
+            destroyed_rot = pygame.transform.rotate(destroyed_sprite, -self.destroyed_angle)
+            destroyed_rect = destroyed_rot.get_rect(center=(self.pos.x - cam_x, self.pos.y - cam_y))
+            screen.blit(destroyed_rot, destroyed_rect.topleft)
             return
 
         # Keskitys rectin mukaan

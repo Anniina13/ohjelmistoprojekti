@@ -252,35 +252,13 @@ class ExplosionManager:
         # enemy: sama paikka pienemmällä koossa
         enemy_folder = os.path.join(base, 'Explosion1')
         self.load_frames_for('enemy', folder=enemy_folder, size=(160, 160))
-        # player: look for any ship 'Destroyed' folder. Check both
-        # - alukset/alus/*/Destroyed (legacy layout) and
-        # - alukset/*/Destroyed (some sprites live directly under alukset)
-        project_root = os.path.dirname(__file__)
-        player_folder = None
-        search_bases = [
-            os.path.join(project_root, 'alukset', 'alus'),
-            os.path.join(project_root, 'alukset')
-        ]
-        desired_ship = os.environ.get('PLAYER_SHIP', 'FIGHTER').lower()
-        found_candidates = []
-        for base in search_bases:
-            if not os.path.isdir(base):
-                continue
-            for candidate in sorted(os.listdir(base)):
-                cand = os.path.join(base, candidate, 'Destroyed')
-                if os.path.isdir(cand):
-                    found_candidates.append((candidate, cand))
-
-        # Prefer a candidate whose folder name contains the desired ship name
-        for name, path in found_candidates:
-            if desired_ship in name.lower():
-                player_folder = path
-                break
-        if not player_folder and found_candidates:
-            player_folder = found_candidates[0][1]
-        if player_folder:
-            # jos kuvat eivät noudata numeroituja tiedostonimiä, ne silti ladataan
-            self.load_frames_for('player', folder=player_folder, size=(220, 220), pattern=r"(.*)\.png")
+        # player: use dedicated explosion sprites so the effect is visually separate
+        # from the ship's own Destroyed animation drawn by Player/Player2.
+        player_folder = os.path.join(base, 'Explosion1')
+        player_frames = self.load_frames_for('player', folder=player_folder, size=(220, 220))
+        if not player_frames:
+            # Fallback to enemy explosion frames if a dedicated player set is missing.
+            self.frames_by_type['player'] = list(self.frames_by_type.get('enemy') or [])
 
     def update(self, dt_ms):
         """Päivitä kaikki aktiiviset räjähdykset ja poista päättyneet.

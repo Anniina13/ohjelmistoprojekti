@@ -25,9 +25,9 @@ class PlayState(GameState):
             self.manager.set_state(LevelCompleteState(self.manager, self.level_manager))
             return
 
-        # Check if current level resulted in game over
-        player_hp = int(getattr(self.level_manager.current_level.player, 'health', 0)) if self.level_manager.current_level.player is not None else 0
-        if player_hp <= 0 or not self.level_manager.current_level.running:
+        # Check if current level resulted in game over.
+        # The level itself handles a short death animation delay before setting game_over=True.
+        if self.level_manager.is_game_over():
             from States.GameOverState import GameOverState
             self.manager.set_state(GameOverState(self.manager))
             return

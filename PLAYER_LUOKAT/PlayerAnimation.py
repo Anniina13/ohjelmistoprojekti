@@ -32,22 +32,35 @@ class PlayerAnimation:
         if self.ship_name:
             candidates = [
                 os.path.join(project_root, 'alukset', 'alus', self.ship_name),
+                os.path.join(project_root, 'alukset', self.ship_name),
+                os.path.join(project_root, 'alukset', f"{self.ship_name}-SPRITES"),
+                os.path.join(project_root, 'alukset', f"{self.ship_name}_SPRITES"),
                 os.path.join(project_root, 'images', f"{self.ship_name}_sprites"),
                 os.path.join(project_root, 'images', self.ship_name),
             ]
 
-        def first_exist(paths):
-            for p in paths:
-                if p and os.path.isdir(p):
-                    return p
-            return None
+            # Add matching folders under /alukset (e.g. FIGHTER-SPRITES).
+            alukset_root = os.path.join(project_root, 'alukset')
+            if os.path.isdir(alukset_root):
+                for cand in sorted(os.listdir(alukset_root)):
+                    if self.ship_name.lower() in cand.lower():
+                        candidates.append(os.path.join(alukset_root, cand))
 
-        base_folder = first_exist(candidates) if candidates else None
+        base_folders = []
+        seen = set()
+        for cand in candidates:
+            if not cand or not os.path.isdir(cand):
+                continue
+            key = os.path.normcase(os.path.abspath(cand))
+            if key in seen:
+                continue
+            seen.add(key)
+            base_folders.append(cand)
 
         frames = []
 
-        # 1) check for Destroyed/ subfolder in base_folder
-        if base_folder:
+        # 1) check for Destroyed/ subfolder in any candidate base folder
+        for base_folder in base_folders:
             destroyed_folder = os.path.join(base_folder, 'Destroyed')
             if os.path.isdir(destroyed_folder):
                 files = [f for f in sorted(os.listdir(destroyed_folder)) if f.lower().endswith('.png')]
@@ -60,7 +73,8 @@ class PlayerAnimation:
                 if frames:
                     return frames
 
-            # 2) if no subfolder, find files in base_folder that start with Destroyed_
+        # 2) if no subfolder, find files in base folders that start with Destroyed_
+        for base_folder in base_folders:
             candidates_files = []
             for fname in sorted(os.listdir(base_folder)):
                 low = fname.lower()

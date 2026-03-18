@@ -24,20 +24,39 @@ def spawn_wave_taso1(
 	up_enemy_cls,
 	zigzag_enemy_cls=None,
     chase_enemy_cls=None,
+	enemy_speeds=None,  # Dict with speed overrides: {'straight': 220, 'circle': 180, ...}
 ):
 	"""Spawn Level 1 enemies for the requested wave.
+
+	Args:
+		enemy_speeds: Optional dict with enemy speed overrides.
+			Keys: 'straight', 'circle', 'down', 'up', 'zigzag', 'chase'
+			Default speeds are used if not specified.
 
 	Returns:
 		bool: True if wave was handled by this level module, else False.
 	"""
+	# Setup default speeds and apply overrides
+	if enemy_speeds is None:
+		enemy_speeds = {}
+	
+	speeds = {
+		'straight': enemy_speeds.get('straight', 120),
+		'circle': enemy_speeds.get('circle', 2.2),  # angular_speed for CircleEnemy
+		'down': enemy_speeds.get('down', 150),
+		'up': enemy_speeds.get('up', 150),
+		'zigzag': enemy_speeds.get('zigzag', 160),
+		'chase': enemy_speeds.get('chase', 120),
+	}
 	if wave_num == 1:
-		e1 = straight_enemy_cls(game.enemy_imgs[0], 200, 200, speed=220)
+		e1 = straight_enemy_cls(game.enemy_imgs[0], 200, 200, speed=speeds['straight'], sprite_index=1)
 		e2 = circle_enemy_cls(
 			game.enemy_imgs[1],
 			game.tausta_leveys // 2 + 300,
 			game.tausta_korkeus // 2,
 			radius=180,
-			angular_speed=2.2,
+			angular_speed=speeds['circle'],
+			sprite_index=2,
 		)
 		for enemy in (e1, e2):
 			_set_enemy_hp(enemy, 1)
@@ -46,8 +65,11 @@ def spawn_wave_taso1(
 		return True
 
 	if wave_num == 2:
+		# Mix of StraightEnemy, ZigZagEnemy, and ChaseEnemy
 		edges = ["right", "top", "left"]
-		for i, edge in enumerate(edges):
+		
+		# Wave 2 Part 1: StraightEnemy from edges
+		for i, edge in enumerate(edges[:2]):  # Just 2 straight enemies
 			if edge == "left":
 				x = 80
 				y = random.randint(80, game.tausta_korkeus - 80)
@@ -57,19 +79,48 @@ def spawn_wave_taso1(
 			elif edge == "top":
 				x = random.randint(80, game.tausta_leveys - 80)
 				y = 80
-			else:
-				x = random.randint(80, game.tausta_leveys - 80)
-				y = random.randint(80, game.tausta_korkeus - 80)
 
-			enemy = straight_enemy_cls(game.enemy_imgs[i % len(game.enemy_imgs)], x, y, speed=220)
+			sprite_idx = i % len(game.enemy_imgs)
+			enemy = straight_enemy_cls(game.enemy_imgs[sprite_idx], x, y, speed=speeds['straight'], sprite_index=sprite_idx+1)
 			_set_enemy_hp(enemy, 1)
 			if hasattr(enemy, "vel"):
 				v = pygame.Vector2(random.uniform(-1, 1), random.uniform(-1, 1))
 				if v.length_squared() == 0:
 					v = pygame.Vector2(1, 0)
-				enemy.vel = v.normalize() * 220
+				enemy.vel = v.normalize() * speeds['straight']
 			apply_hitbox(enemy, hitbox_enemy)
 			game.enemies.append(enemy)
+		
+		# Wave 2 Part 2: ZigZagEnemy
+		if zigzag_enemy_cls:
+			sprite_idx = 2 % len(game.enemy_imgs)
+			enemy = zigzag_enemy_cls(
+				game.enemy_imgs[sprite_idx],
+				game.tausta_leveys // 2,
+				50,
+				speed=speeds['zigzag'],
+				amplitude=120,
+				frequency=3.0,
+				sprite_index=sprite_idx+1,
+			)
+			_set_enemy_hp(enemy, 1)
+			apply_hitbox(enemy, hitbox_enemy)
+			game.enemies.append(enemy)
+		
+		# Wave 2 Part 3: ChaseEnemy
+		if chase_enemy_cls:
+			sprite_idx = 0 % len(game.enemy_imgs)
+			enemy = chase_enemy_cls(
+				game.enemy_imgs[sprite_idx],
+				game.tausta_leveys - 100,
+				100,
+				speed=speeds['chase'],
+				sprite_index=sprite_idx+1,
+			)
+			_set_enemy_hp(enemy, 1)
+			apply_hitbox(enemy, hitbox_enemy)
+			game.enemies.append(enemy)
+		
 		return True
 
 	if wave_num == 3:
@@ -78,7 +129,8 @@ def spawn_wave_taso1(
 		for i in range(3):
 			x = spacing * (i + 1)
 			y = 30
-			enemy = down_enemy_cls(game.enemy_imgs[i % len(game.enemy_imgs)], x, y, speed=250)
+			sprite_idx = i % len(game.enemy_imgs)
+			enemy = down_enemy_cls(game.enemy_imgs[sprite_idx], x, y, speed=speeds['down'], sprite_index=sprite_idx+1)
 			_set_enemy_hp(enemy, 1)
 			apply_hitbox(enemy, hitbox_enemy)
 			game.enemies.append(enemy)
@@ -86,7 +138,8 @@ def spawn_wave_taso1(
 		for i in range(2):
 			x = spacing * (i + 3.5)
 			y = game.tausta_korkeus - 30
-			enemy = up_enemy_cls(game.enemy_imgs[(i + 3) % len(game.enemy_imgs)], x, y, speed=250)
+			sprite_idx = (i + 3) % len(game.enemy_imgs)
+			enemy = up_enemy_cls(game.enemy_imgs[sprite_idx], x, y, speed=speeds['up'], sprite_index=sprite_idx+1)
 			_set_enemy_hp(enemy, 1)
 			apply_hitbox(enemy, hitbox_enemy)
 			game.enemies.append(enemy)

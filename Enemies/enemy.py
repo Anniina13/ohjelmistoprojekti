@@ -5,6 +5,9 @@
 import pygame
 import math
 import random
+from Physics.core import RigidBody
+from Physics.animation import DampedOscillator
+from Enemies.sprite_config import get_sprite_config, apply_angle_constraints
 
 # Collision configuration:
 # `DEFAULT_COLLISION_RADIUS_FACTOR` is multiplied by the sprite's max dimension
@@ -14,143 +17,157 @@ import random
 DEFAULT_COLLISION_RADIUS_FACTOR = 0.45
 MIN_COLLISION_RADIUS = 8
 
-class Enemy(pygame.sprite.Sprite):
-    """Perusvihollinen: tarjoaa sijainnin, törmäys‑animaation ja näytön rotaation.
-
-    Tämän luokan ilmentymät ylläpitävät `image`/`rect`-attribuutteja ja tarjoavat
-    apufunktiot vaimeneville törmäysvärähtelyille sekä sujuvalle näyttökulman päivitykselle.
+class Enemy(RigidBody, pygame.sprite.Sprite):
     """
+    Base enemy class combining pygame.sprite.Sprite with Physics.RigidBody.
+    
+    Provides physics simulation, collision detection, and animations.
+    Handles damped oscillations for collision bounces.
+    
+    Attributes:
+        image/rect: pygame sprite display
+        hp: health points
+        pos/vel: physics position and velocity (from RigidBody)
+        mass: physics mass (from RigidBody)
+        collision_radius: collision detection radius
+        oscillator: DampedOscillator for collision bounces
+    """
+    
     def __init__(self, image: pygame.Surface, x: float, y: float, hp: int = 1):
-        super().__init__()
+        """
+        Initialize enemy with physics and sprite attributes.
+        
+        Args:
+            image: pygame.Surface sprite image
+            x: initial X position
+            y: initial Y position
+            hp: health points (default 1)
+        """
+        RigidBody.__init__(self, x=x, y=y, mass=1.0)
+        pygame.sprite.Sprite.__init__(self)
+        
         self.image = image
         self.rect = self.image.get_rect(center=(int(x), int(y)))
         self.hp = hp
-        # Default collision radius derived from sprite size. Can be overridden
-        # externally (e.g. spawn logic) by setting `entity.collision_radius`.
+        
+        # Collision configuration
         try:
             self.collision_radius = max(MIN_COLLISION_RADIUS, int(max(self.rect.width, self.rect.height) * DEFAULT_COLLISION_RADIUS_FACTOR))
         except Exception:
             self.collision_radius = MIN_COLLISION_RADIUS
-        # Törmäys-tärähdyslukko: jos True, entiteetti pysyy paikallaan asetetun ajan
-        self.collision_bounce_locked = False
-        self.collision_bounce_timer = 0.0
-        self.collision_bounce_duration = 3
-        self.collision_bounce_target = None
-
-        # Fyysinen massa törmäysten ratkaisuun (voi ylikirjoittaa aliluokissa)
-        self.mass = 1.0
-
-        # Törmäys-tärähdys käytössä: vaimeneva värähtely perusaseman ympärillä
-        self.collision_bounce_active = False
-        self.collision_bounce_base = pygame.Vector2(self.rect.center)
-        self.collision_bounce_initial_disp = pygame.Vector2(0, 0)
-        self.collision_bounce_timer = 0.0
-        self.collision_bounce_duration = 0.0
-        self.collision_bounce_osc = 0.0
-        self.collision_bounce_damping = 0.0
+        
+        # Collision bounce animation (replaces old collision_bounce_* logic)
+        self.oscillator = None
+        
+        # Display angle for rotation (radians)
+        self.display_angle = 0.0
+        
+        # Sprite-specific rotation configuration
+        self.rotation_config = {
+            'rotation_enabled': True,
+            'rotation_offset': 0.0,
+            'min_angle': None,
+            'max_angle': None,
+        }
 
     def update(self, dt_ms: int, player=None, world_rect: pygame.Rect | None = None):
-        # Jos törmäys-tärähdysanimaatio on käynnissä, päivitä se ensin.
-        if getattr(self, 'collision_bounce_active', False):
-            try:
-                dt = dt_ms / 1000.0
-                self.collision_bounce_timer -= dt
-                elapsed = max(0.0, self.collision_bounce_duration - self.collision_bounce_timer)
-                T = max(1e-6, float(self.collision_bounce_duration))
-                omega = 2.0 * math.pi * (float(self.collision_bounce_osc) / T)
-                # Eksponentiaalinen vaimennus peittää värähtelyn aikakehyksessä
-                envelope = math.exp(- (float(self.collision_bounce_damping) * elapsed) / T)
-                osc = math.cos(omega * elapsed)
-                disp = pygame.Vector2(self.collision_bounce_initial_disp) * (envelope * osc)
-                try:
-                    # Aseta väliaikainen sijainti peruspaikan ja disp-värähtelyn perusteella
-                    self.pos = pygame.Vector2(self.collision_bounce_base) + disp
-                    self.rect.center = (int(self.pos.x), int(self.pos.y))
-                except Exception:
-                    pass
-                if self.collision_bounce_timer <= 0.0:
-                    self.collision_bounce_active = False
-                    self.collision_bounce_timer = 0.0
-                    # Lopeta täsmälleen peruspaikkaan
-                    try:
-                        self.pos = pygame.Vector2(self.collision_bounce_base)
-                        self.rect.center = (int(self.pos.x), int(self.pos.y))
-                    except Exception:
-                        pass
-                return
-            except Exception:
-                pass
-
-        # Käsittele törmäys-tärähdyslukko: pidä entiteetti paikallaan ja kiinnitettynä kohteeseen
-        if getattr(self, 'collision_bounce_locked', False):
-            try:
-                dt = dt_ms / 1000.0
-                self.collision_bounce_timer -= dt
-                if self.collision_bounce_target is not None:
-                    # Kiinnitä tarkkaan kohdepaikkaan
-                    try:
-                        self.pos = pygame.Vector2(self.collision_bounce_target)
-                        self.rect.center = (int(self.pos.x), int(self.pos.y))
-                    except Exception:
-                        pass
-                if self.collision_bounce_timer <= 0.0:
-                    self.collision_bounce_locked = False
-                    self.collision_bounce_timer = 0.0
-                    self.collision_bounce_target = None
-                return
-            except Exception:
-                return
-
-    def start_collision_bounce(self, base_pos, initial_disp, duration=3, oscillations=2.0, damping=2.2):
-        """Käynnistä vaimeneva värähtely (`collision bounce`) peruspaikan ympärillä.
-
-        Parametrit:
-        - `base_pos`: paikka (tuple/Vector), johon värähtely lopulta asettuu.
-        - `initial_disp`: vektori joka kuvaa entiteetin alkusiirtoa suhteessa `base_pos`.
-        - `duration`: animaation kokonaiskesto sekunteina.
-        - `oscillations`: värähtelyjen lukuarvo (käytetään taajuuden laskussa).
-        - `damping`: eksponentiaalinen vaimennuskertoimen suuruus.
         """
-        try:
-            self.collision_bounce_active = True
-            self.collision_bounce_base = pygame.Vector2(base_pos)
-            self.collision_bounce_initial_disp = pygame.Vector2(initial_disp)
-            self.collision_bounce_duration = float(max(0.01, duration))
-            self.collision_bounce_timer = float(self.collision_bounce_duration)
-            self.collision_bounce_osc = float(oscillations)
-            self.collision_bounce_damping = float(damping)
-        except Exception:
-            pass
+        Update enemy state: physics, animations, oscillations.
+        
+        Args:
+            dt_ms: delta time in milliseconds
+            player: player reference (for AI targeting)
+            world_rect: world boundaries (for movement constraints)
+        """
+        dt = dt_ms / 1000.0
+        
+        # Update damped oscillator if active (collision bounce animation)
+        if self.oscillator is not None and self.oscillator.is_active():
+            # Oscillator modifies position during collision bounce
+            self.pos = self.oscillator.update(dt)
+            self.rect.center = (int(self.pos.x), int(self.pos.y))
+            return  # Skip regular physics update during bounce
+        else:
+            self.oscillator = None
+        
+        # Regular physics update: apply forces, update velocity and position
+        RigidBody.update(self, dt)
+        
+        # Sync rect with physics position
+        self.rect.center = (int(self.pos.x), int(self.pos.y))
+
+    
+    def start_collision_bounce(self, base_pos, initial_disp, duration=2.0, oscillations=2.0, damping=2.2):
+        """
+        Start damped oscillation animation (collision bounce).
+        
+        Creates a DampedOscillator that will be applied in next update() calls.
+        
+        Args:
+            base_pos: position to oscillate around
+            initial_disp: initial displacement from base
+            duration: animation duration in seconds
+            oscillations: number of oscillation cycles
+            damping: exponential decay rate
+        """
+        self.oscillator = DampedOscillator(
+            base_pos=base_pos,
+            initial_displacement=initial_disp,
+            duration=duration,
+            oscillations=oscillations,
+            damping=damping
+        )
 
     def _update_display_angle(self, dt_ms: int, target: float, max_deg_per_sec: float = 720.0):
-        """Suuntaa `display_angle` sujuvasti kohti `target`-kulmaa.
-
-        - `target` annetaan radiaaneina (atan2-konventio).
-        - `max_deg_per_sec` rajoittaa kulmanmuutosta, jotta roottaukset eivät hypi.
         """
+        Smooth rotation toward target angle, respecting sprite rotation config.
+        
+        Args:
+            dt_ms: delta time in milliseconds
+            target: target angle in radians
+            max_deg_per_sec: maximum rotation speed (degrees/second)
+        """
+        # Check if rotation is enabled for this sprite
+        if not self.rotation_config.get('rotation_enabled', True):
+            return  # Don't update angle if rotation is disabled
+        
+        # Apply rotation offset (e.g., for sprites with non-standard orientation)
+        offset = self.rotation_config.get('rotation_offset', 0.0)
+        target = target + offset
+        
         try:
             curr = float(getattr(self, 'display_angle', 0.0))
         except Exception:
             curr = 0.0
-        # Normaali etäisyys kulmassa [-pi, pi]
+        
+        # Normalize angle difference to [-pi, pi]
         diff = (target - curr + math.pi) % (2.0 * math.pi) - math.pi
         max_change = math.radians(max_deg_per_sec) * (dt_ms / 1000.0)
+        
         if abs(diff) <= max_change:
             new = target
         else:
             new = curr + (max_change if diff > 0 else -max_change)
+        
+        # Apply min/max angle constraints
+        new = apply_angle_constraints(new, self.rotation_config)
+        
         self.display_angle = new
+    
+    def set_sprite_config(self, sprite_index):
+        """Configure rotation settings based on sprite index."""
+        self.rotation_config = get_sprite_config(sprite_index)
 
     def maybe_shoot(self, dt_ms: int, containers: dict | None = None, player=None):
-        """Oletustoteutus vihollisen ampumiskutsulle.
-
-        Monet pelin vihollisluokat voivat tarjota `maybe_shoot`-metodin. Tämän
-        perusluokan oletus on ei tehdä mitään — näin kutsuja voi tehdä ilman
-        erillistä hasattr-tarkistusta.
-        - `containers` on sanakirja, esim. {'bullets': list, 'muzzles': list}
-        - `player` voidaan välittää tähtäystarkoituksiin
         """
-        return None
+        Optional shooting behavior (override in subclasses).
+        
+        Args:
+            dt_ms: delta time in milliseconds
+            containers: dict with 'bullets', 'muzzles' lists
+            player: player reference for targeting
+        """
+        pass
 
     def draw(self, screen: pygame.Surface, camera_x: int, camera_y: int):
         try:
@@ -168,160 +185,9 @@ class Enemy(pygame.sprite.Sprite):
             else:
                 # Ei merkittävää rotaatiota -> piirrä kuva siten, että
                 # kuva on keskitetty `self.rect.center` koordinaattiin.
-                # Tämä varmistaa, että jos `rect` on muutettu (esim. hitbox
-                # override), visuaalinen sprite pysyy keskitettynä hitboxiin.
                 img_r = self.image.get_rect(center=(self.rect.centerx - camera_x,
                                                     self.rect.centery - camera_y))
                 screen.blit(self.image, img_r.topleft)
         except Exception:
-            # Piirrä varmistus, jos rotaatio tai edellinen logiikka epäonnistuu
-            try:
-                img_r = self.image.get_rect(center=(self.rect.centerx - camera_x,
-                                                    self.rect.centery - camera_y))
-                screen.blit(self.image, img_r.topleft)
-            except Exception:
-                # Viimeinen varmistus: fallback vanhaan tapaan
-                screen.blit(self.image, (self.rect.x - camera_x, self.rect.y - camera_y))
-
-
-class StraightEnemy(Enemy):
-    """Lentää suoraan valittuun suuntaan"""
-    def __init__(self, image, x, y, speed=220, hp=1):
-        super().__init__(image, x, y, hp)
-        angle = random.uniform(0, math.tau)
-        self.vx = math.cos(angle) * speed
-        self.vy = math.sin(angle) * speed
-
-    def update(self, dt_ms, player=None, world_rect=None):
-        dt = dt_ms / 1000.0
-        self.rect.x += int(self.vx * dt)
-        self.rect.y += int(self.vy * dt)
-
-        if world_rect is not None:
-            if self.rect.left <= world_rect.left or self.rect.right >= world_rect.right:
-                self.vx *= -1
-            if self.rect.top <= world_rect.top or self.rect.bottom >= world_rect.bottom:
-                self.vy *= -1
-            self.rect.clamp_ip(world_rect)
-
-
-class CircleEnemy(Enemy):
-    """Kiertää pisteen ympäri."""
-    def __init__(self, image, center_x, center_y, radius=160, angular_speed=2.0, hp=1):
-        super().__init__(image, center_x + radius, center_y, hp)
-        self.center = pygame.Vector2(center_x, center_y)
-        self.radius = radius
-        self.angular_speed = angular_speed
-        self.angle = random.uniform(0, math.tau)
-
-    def update(self, dt_ms, player=None, world_rect=None):
-        dt = dt_ms / 1000.0
-        self.angle += self.angular_speed * dt
-
-        x = self.center.x + math.cos(self.angle) * self.radius
-        y = self.center.y + math.sin(self.angle) * self.radius
-        self.rect.center = (int(x), int(y))
-
-
-class DownEnemy(Enemy):
-    """Lentää ylhäältä alas ja takaisin."""
-    def __init__(self, image, x, y, speed=200, hp=1):
-        super().__init__(image, x, y, hp)
-        self.speed = speed
-        self.vy = speed  # Liikkuu alas
-
-    def update(self, dt_ms, player=None, world_rect=None):
-        dt = dt_ms / 1000.0
-        self.rect.y += int(self.vy * dt)
-
-        if world_rect is not None:
-            if self.rect.top <= world_rect.top:
-                self.rect.top = world_rect.top
-                self.vy = self.speed  # Käänny alas
-            elif self.rect.bottom >= world_rect.bottom:
-                self.rect.bottom = world_rect.bottom
-                self.vy = -self.speed  # Käänny ylös
-            self.rect.clamp_ip(world_rect)
-
-
-class UpEnemy(Enemy):
-    """Lentää alhaalta ylös ja takaisin."""
-    def __init__(self, image, x, y, speed=200, hp=1):
-        super().__init__(image, x, y, hp)
-        self.speed = speed
-        self.vy = -speed  # Liikkuu ylös (negatiivinen)
-
-    def update(self, dt_ms, player=None, world_rect=None):
-        dt = dt_ms / 1000.0
-        self.rect.y += int(self.vy * dt)
-
-        if world_rect is not None:
-            if self.rect.top <= world_rect.top:
-                self.rect.top = world_rect.top
-                self.vy = self.speed  # Käänny alas
-            elif self.rect.bottom >= world_rect.bottom:
-                self.rect.bottom = world_rect.bottom
-                self.vy = -self.speed  # Käänny ylös
-            self.rect.clamp_ip(world_rect)
-
-class ZigZagEnemy(Enemy):
-    """Liikkuu siksakissa ylös-alas."""
-    def __init__(self, image, x, y, speed=260, amplitude=120, frequency=3.0, hp=1):
-        super().__init__(image, x, y, hp)
-        self.start_x = x
-        self.pos = pygame.Vector2(x, y)
-        self.speed = speed
-        self.amplitude = amplitude
-        self.frequency = frequency
-        self.time = 0.0
-        self.vy_dir = 1  # 1 = alas, -1 = ylös
-
-    def update(self, dt_ms, player=None, world_rect=None):
-        dt = dt_ms / 1000.0
-        self.time += dt
-
-        self.pos.y += self.speed * self.vy_dir * dt
-        self.pos.x = self.start_x + math.sin(self.time * self.frequency) * self.amplitude
-
-        self.rect.center = (int(self.pos.x), int(self.pos.y))
-
-        if world_rect is not None:
-            if self.rect.top <= world_rect.top:
-                self.rect.top = world_rect.top
-                self.vy_dir = 1
-            elif self.rect.bottom >= world_rect.bottom:
-                self.rect.bottom = world_rect.bottom
-                self.vy_dir = -1
-
-            self.pos = pygame.Vector2(self.rect.center)
-
-class ChaseEnemy(Enemy):
-    """Hakeutuu pelaajaa kohti."""
-    
-    def __init__(self, image, x, y, speed=220, hp=1):
-        super().__init__(image, x, y, hp)
-        self.pos = pygame.Vector2(x, y)
-        self.speed = speed
-        self.hit_player_cooldown = 0.0
-
-    def update(self, dt_ms, player=None, world_rect=None):
-        dt = dt_ms / 1000.0
-
-        # vähennä cooldownia
-        if self.hit_player_cooldown > 0:
-            self.hit_player_cooldown -= dt
-
-        # liikkuu kohti pelaajaa vain jos cooldown ei ole päällä
-        if player is not None and self.hit_player_cooldown <= 0:
-            target = pygame.Vector2(player.rect.center)
-            direction = target - self.pos
-
-            if direction.length_squared() > 0:
-                direction = direction.normalize()
-                self.pos += direction * self.speed * dt
-
-        self.rect.center = (int(self.pos.x), int(self.pos.y))
-
-        if world_rect is not None:
-            self.rect.clamp_ip(world_rect)
-            self.pos = pygame.Vector2(self.rect.center)
+            # Viimeinen varmistus: fallback vanhaan tapaan
+            screen.blit(self.image, (self.rect.x - camera_x, self.rect.y - camera_y))
