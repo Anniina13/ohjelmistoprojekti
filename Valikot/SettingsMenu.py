@@ -1,4 +1,7 @@
 import pygame
+#------------------------------------------------------
+#Asennus: pip install pygame_menu
+#------------------------------------------------------
 
 
 # Oletusnäytön asetukset (käytetään vain koordinaatteihin, ei luoda uutta ikkunaa)
