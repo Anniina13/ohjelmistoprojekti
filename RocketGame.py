@@ -134,7 +134,12 @@ class Game:
         self._boss_storm_hide_remaining_ms = 0
         self._boss_storm_spawn_timer_ms = 0
         self._boss_storm_spawn_interval_ms = 260
-        self._test2_shower_cd_ms = 0
+        self._test2_shower_cd_ms = random.randint(2200, 4200)
+        self._test2_storm_phase = "idle"
+        self._test2_storm_side = "top"
+        self._test2_storm_timer_ms = 0
+        self._test2_storm_burst_remaining = 0
+        self._test2_storm_burst_step_ms = 0
         self.pistejarjestelma = None
         self.leaderboard = Leaderboard()
         try:
@@ -475,24 +480,87 @@ class Game:
     def _start_enemy_calm_period(self):
         self.enemy_calm_timer_ms = max(self.enemy_calm_timer_ms, self.enemy_calm_duration_ms)
 
+    def _spawn_test2_meteor_from_side(self, side, tier, speed_min, speed_max):
+        if self.hazard_system is None:
+            return
+
+        w = float(self.tausta_leveys)
+        h = float(self.tausta_korkeus)
+        speed = random.uniform(float(speed_min), float(speed_max))
+
+        if side == "left":
+            x = random.uniform(-180.0, -40.0)
+            y = random.uniform(40.0, max(41.0, h * 0.78))
+            vx = abs(speed) * random.uniform(0.72, 0.96)
+            vy = random.uniform(-55.0, 95.0)
+        elif side == "right":
+            x = random.uniform(w + 40.0, w + 180.0)
+            y = random.uniform(40.0, max(41.0, h * 0.78))
+            vx = -abs(speed) * random.uniform(0.72, 0.96)
+            vy = random.uniform(-55.0, 95.0)
+        else:
+            x = random.uniform(32.0, max(33.0, w - 32.0))
+            y = random.uniform(-190.0, -65.0)
+            vx = random.uniform(-90.0, 90.0)
+            vy = abs(speed)
+
+        self.hazard_system.spawn_meteor(tier=int(tier), center=(x, y), velocity=(vx, vy))
+
     def _update_test2_meteor_showers(self, dt_ms):
         if not self.is_test2_level or self.hazard_system is None:
             return
 
-        self._test2_shower_cd_ms -= int(dt_ms)
-        if self._test2_shower_cd_ms > 0:
+        dt_i = int(dt_ms)
+
+        if self._test2_storm_phase == "idle":
+            self._test2_shower_cd_ms -= dt_i
+            if self._test2_shower_cd_ms > 0:
+                return
+
+            # Pick direction first, then telegraph the same direction with 2 small meteors.
+            self._test2_storm_side = random.choice(("top", "left", "right"))
+            for _ in range(2):
+                self._spawn_test2_meteor_from_side(
+                    self._test2_storm_side,
+                    tier=1,
+                    speed_min=145.0,
+                    speed_max=205.0,
+                )
+
+            self._test2_storm_phase = "warning"
+            self._test2_storm_timer_ms = random.randint(3000, 5000)
             return
 
-        self._test2_shower_cd_ms = random.randint(3600, 5600)
+        if self._test2_storm_phase == "warning":
+            self._test2_storm_timer_ms -= dt_i
+            if self._test2_storm_timer_ms > 0:
+                return
 
-        burst_count = random.randint(3, 6)
-        for _ in range(burst_count):
-            x = random.uniform(32, max(33, self.tausta_leveys - 32))
-            y = random.uniform(-170, -70)
-            vx = random.uniform(-70.0, 70.0)
-            vy = random.uniform(240.0, 360.0)
-            tier = random.choices([1, 2, 3], weights=[0.55, 0.35, 0.10], k=1)[0]
-            self.hazard_system.spawn_meteor(tier=tier, center=(x, y), velocity=(vx, vy))
+            self._test2_storm_phase = "burst"
+            self._test2_storm_burst_remaining = random.randint(9, 16)
+            self._test2_storm_burst_step_ms = 0
+
+        if self._test2_storm_phase == "burst":
+            self._test2_storm_burst_step_ms -= dt_i
+            if self._test2_storm_burst_step_ms > 0:
+                return
+
+            spawn_now = min(self._test2_storm_burst_remaining, random.randint(2, 3))
+            for _ in range(spawn_now):
+                tier = random.choices([1, 2, 3], weights=[0.40, 0.42, 0.18], k=1)[0]
+                self._spawn_test2_meteor_from_side(
+                    self._test2_storm_side,
+                    tier=tier,
+                    speed_min=250.0,
+                    speed_max=390.0,
+                )
+
+            self._test2_storm_burst_remaining -= spawn_now
+            self._test2_storm_burst_step_ms = random.randint(220, 360)
+
+            if self._test2_storm_burst_remaining <= 0:
+                self._test2_storm_phase = "idle"
+                self._test2_shower_cd_ms = random.randint(9000, 15000)
 
     def _ensure_boss_bomb_hazards(self):
         """Enable boss bomb drops on normal levels without enabling meteor hazards."""
@@ -697,6 +765,12 @@ class Game:
         self._boss_storm_next_ms = None
         self._boss_storm_hide_remaining_ms = 0
         self._boss_storm_spawn_timer_ms = 0
+        self._test2_shower_cd_ms = random.randint(2200, 4200)
+        self._test2_storm_phase = "idle"
+        self._test2_storm_side = "top"
+        self._test2_storm_timer_ms = 0
+        self._test2_storm_burst_remaining = 0
+        self._test2_storm_burst_step_ms = 0
         self.current_wave = 1
         self.wave_cleared = False
         self.boss_clear_menu_delay_remaining = None
