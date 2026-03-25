@@ -1,4 +1,10 @@
 import pygame
+import os
+from Valikot.menu_style import (
+    MenuButton,
+    draw_dim_overlay,
+    draw_menu_panel,
+)
 
 SCREEN_WIDTH = 1600
 SCREEN_HEIGHT = 800
@@ -6,38 +12,6 @@ SCREEN_HEIGHT = 800
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 DARK_BLUE = (52, 78, 91)
-LIGHT_BLUE = (100, 150, 200)
-HOVER_COLOR = (150, 200, 255)
-
-title_font = None
-button_font = None
-small_font = None
-
-class Button:
-    """Simple UI button used by the main menu."""
-
-    def __init__(self, x, y, width, height, text, color, text_color, action=None):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.text = text
-        self.color = color
-        self.text_color = text_color
-        self.action = action
-        self.is_hovered = False
-
-    def draw(self, surface):
-        current_color = HOVER_COLOR if self.is_hovered else self.color
-        pygame.draw.rect(surface, current_color, self.rect, border_radius=10)
-        pygame.draw.rect(surface, WHITE, self.rect, 3, border_radius=10)
-
-        text_surface = button_font.render(self.text, True, self.text_color)
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        surface.blit(text_surface, text_rect)
-
-    def is_clicked(self, pos):
-        return self.rect.collidepoint(pos)
-
-    def update(self, pos):
-        self.is_hovered = self.rect.collidepoint(pos)
 
 class TextInput:
     """Simple text input box used by the settings menu."""
@@ -93,58 +67,68 @@ class MainMenu:
     """State-friendly main menu that draws to an external surface."""
 
     def __init__(self):
-        global title_font, button_font, small_font
-
         if not pygame.get_init():
             pygame.init()
 
         if not pygame.font.get_init():
             pygame.font.init()
 
-        title_font = pygame.font.Font(None, 80)
-        button_font = pygame.font.Font(None, 50)
-        small_font = pygame.font.Font(None, 30)
-
+        button_width = 340
+        button_height = 78
+        button_spacing = 22
+        panel_width = 760
+        panel_height = 560
+        panel_left = SCREEN_WIDTH // 2 - panel_width // 2
+        panel_top = SCREEN_HEIGHT // 2 - panel_height // 2
+        self.panel_rect = pygame.Rect(panel_left, panel_top, panel_width, panel_height)
         button_width = 300
-        button_height = 80
-        button_spacing = 30
+        button_height = 78
         total_height = 3 * button_height + 2 * button_spacing
-        start_y = SCREEN_HEIGHT // 2 - total_height // 2 + 40
+        start_y = self.panel_rect.top + 170 + (self.panel_rect.height - 240 - total_height) // 2
+        center_x = SCREEN_WIDTH // 2 - button_width // 2
 
         self.buttons = [
-            Button(
-                SCREEN_WIDTH // 2 - button_width // 2,
+            MenuButton(
+                center_x,
                 start_y,
                 button_width,
                 button_height,
                 "START GAME",
-                LIGHT_BLUE,
-                WHITE,
                 action="start",
             ),
-            Button(
-                SCREEN_WIDTH // 2 - button_width // 2,
+            MenuButton(
+                center_x,
                 start_y + button_height + button_spacing,
                 button_width,
                 button_height,
                 "SETTINGS",
-                LIGHT_BLUE,
-                WHITE,
                 action="settings",
             ),
-            Button(
-                SCREEN_WIDTH // 2 - button_width // 2,
+            MenuButton(
+                center_x,
                 start_y + 2 * (button_height + button_spacing),
                 button_width,
                 button_height,
                 "QUIT",
-                LIGHT_BLUE,
-                WHITE,
                 action="quit",
+                variant="danger",
             ),
         ]
 
+<<<<<<< HEAD
         self.text_input = TextInput(50, SCREEN_HEIGHT - 100, 300, 40)
+=======
+        # Menu backdrop: draw scene-like background and translucent veil
+        # instead of a flat solid color.
+        self.background_image = None
+        try:
+            project_root = os.path.dirname(os.path.dirname(__file__))
+            bg_path = os.path.join(project_root, "images", "taustat", "avaruus.png")
+            bg = pygame.image.load(bg_path).convert()
+            self.background_image = pygame.transform.scale(bg, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        except Exception:
+            self.background_image = None
+>>>>>>> 900f65ab733880babcfc414576c063e9168334fe
 
     def handle_events(self, events):
         """Handle a frame's events and return selected action or None."""
@@ -160,11 +144,12 @@ class MainMenu:
         return self.text_input.get_value()
 
     def draw(self, surface):
-        surface.fill(DARK_BLUE)
-
-        title_surface = title_font.render("ROCKET GAME", True, WHITE)
-        title_rect = title_surface.get_rect(center=(SCREEN_WIDTH // 2, 180))
-        surface.blit(title_surface, title_rect)
+        if self.background_image is not None:
+            surface.blit(self.background_image, (0, 0))
+        else:
+            surface.fill(DARK_BLUE)
+        draw_dim_overlay(surface)
+        draw_menu_panel(surface, self.panel_rect, "ROCKET GAME", "Main Menu")
 
         mouse_pos = pygame.mouse.get_pos()
         for button in self.buttons:

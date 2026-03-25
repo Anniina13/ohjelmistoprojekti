@@ -1,3 +1,5 @@
+import pygame
+
 from States.GameState import GameState
 from Valikot.MainMenu import MainMenu
 
@@ -23,8 +25,19 @@ class MainMenuState(GameState):
         elif action == "settings":
             try:
                 from Valikot.SettingsMenu import main as settings_menu_main
+                from States.PlayState import PlayState
+                from Tasot.LevelManager import LevelManager
 
-                settings_menu_main()
+                settings_action = settings_menu_main()
+                current_surface = pygame.display.get_surface()
+                if current_surface is not None:
+                    self.manager.screen = current_surface
+                if settings_action == "start_test_level":
+                    test_level_manager = LevelManager(self.manager.screen, level_numbers=[0])
+                    self.manager.set_state(PlayState(self.manager, level_manager=test_level_manager))
+                elif settings_action == "start_test2_level":
+                    test_level_manager = LevelManager(self.manager.screen, level_numbers=[6])
+                    self.manager.set_state(PlayState(self.manager, level_manager=test_level_manager))
             except Exception as exc:
                 print(f"Could not open settings menu: {exc}")
 

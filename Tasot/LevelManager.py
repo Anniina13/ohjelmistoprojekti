@@ -18,20 +18,22 @@ from RocketGame import Game
 class LevelManager:
     """Manages multiple game level instances and coordinates progression."""
 
-    def __init__(self, screen, num_levels=5):
+    def __init__(self, screen, num_levels=5, level_numbers=None):
         """Initialize level manager with N level instances.
 
         Args:
             screen: Pygame display surface.
             num_levels: Number of levels to create (default 5 for Taso1-5).
+            level_numbers: Optional explicit level IDs to instantiate, e.g. [0] for test level.
         """
         self.screen = screen
-        self.num_levels = num_levels
+        self.level_numbers = list(level_numbers) if level_numbers else list(range(1, int(num_levels) + 1))
+        self.num_levels = len(self.level_numbers)
         self.current_level_index = 0
         self.total_score = 0
 
         # Create level instances (each Game instance for a level)
-        self.levels = [Game(screen, level_number=i + 1) for i in range(num_levels)]
+        self.levels = [Game(screen, level_number=level_id) for level_id in self.level_numbers]
 
         # Active level reference
         self.current_level = self.levels[self.current_level_index]
@@ -39,6 +41,19 @@ class LevelManager:
         # Game-wide state
         self.game_over = False
         self.all_levels_completed = False
+
+    def _prime_level_timing(self, level):
+        """Reset timing after level activation to avoid large first-frame dt."""
+        try:
+            level.clock.tick(60)
+        except Exception:
+            pass
+
+        try:
+            if level.physics_world is not None:
+                level.physics_world.accumulator = 0.0
+        except Exception:
+            pass
 
     def next_level(self):
         """Advance to next level.
@@ -53,6 +68,7 @@ class LevelManager:
         if self.current_level_index < self.num_levels - 1:
             self.current_level_index += 1
             self.current_level = self.levels[self.current_level_index]
+            self._prime_level_timing(self.current_level)
 
         # Näytä uuden tason pisteinä tähän asti kerätty yhteissaldo
             if hasattr(self.current_level, "pistejarjestelma"):
@@ -81,8 +97,12 @@ class LevelManager:
 
     def get_current_level_number(self):
         """Get 1-indexed current level number."""
-        return self.current_level_index + 1
+        try:
+            return int(self.level_numbers[self.current_level_index])
+        except Exception:
+            return self.current_level_index + 1
 
     def reset_current_level(self):
         """Reset current level to initial state."""
         self.current_level.reset_game()
+        self._prime_level_timing(self.current_level)
