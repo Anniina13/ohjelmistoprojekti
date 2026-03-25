@@ -1315,7 +1315,7 @@ class Game:
         self.player.draw(self.screen, self.camera_x, self.camera_y)
         self.explosion_manager.draw(self.screen, self.camera_x, self.camera_y)
 
-        # Pisteet sijainti 
+        # Pisteet sijainti oikeassa yläkulmassa
         font = pygame.font.SysFont('Arial', 36)
         text = "Pisteet: " + str(self.pistejarjestelma.hae_pisteet())
         w, _ = font.size(text)
