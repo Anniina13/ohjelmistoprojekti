@@ -6,12 +6,61 @@ from Valikot.menu_style import (
     draw_menu_panel,
 )
 
-SCREEN_WIDTH = 1600
-SCREEN_HEIGHT = 800
+
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 DARK_BLUE = (52, 78, 91)
+
+class TextInput:
+    """Simple text input box used by the settings menu."""
+
+    def __init__(self, x, y, width, height, text='', color=WHITE, text_color=BLACK):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.color = color
+        self.text_color = text_color
+        self.active = False
+
+    def draw(self, surface):
+        pygame.draw.rect(surface, self.color, self.rect, border_radius=5)
+        pygame.draw.rect(surface, BLACK, self.rect, 2, border_radius=5)
+
+        text_surface = pygame.font.Font(None, 36).render(self.text, True, self.text_color)
+        text_rect = text_surface.get_rect(midleft=(self.rect.x + 10, self.rect.centery))
+        surface.blit(text_surface, text_rect)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.active = self.rect.collidepoint(event.pos)
+        elif event.type == pygame.KEYDOWN and self.active:
+            if event.key == pygame.K_BACKSPACE:
+                self.text = self.text[:-1]
+            else:
+                self.text += event.unicode
+    
+    def get_value(self):
+        return self.text.strip()
+    
+    def set_value(self, value):
+        self.text = value
+
+    def clear(self):
+        self.text = ''
+    
+    def __str__(self):
+        return self.text
+    
+    def save_to_file(self, filename):
+        with open(filename, 'w') as file:
+            file.write(self.text)
+    
+    def load_from_file(self, filename):
+        try:
+            with open(filename, 'r') as file:
+                self.text = file.read().strip()
+        except FileNotFoundError:
+            self.text = ''
 
 class MainMenu:
     """State-friendly main menu that draws to an external surface."""
@@ -23,56 +72,71 @@ class MainMenu:
         if not pygame.font.get_init():
             pygame.font.init()
 
-        button_width = 340
-        button_height = 78
-        button_spacing = 22
-        panel_width = 760
-        panel_height = 560
-        panel_left = SCREEN_WIDTH // 2 - panel_width // 2
-        panel_top = SCREEN_HEIGHT // 2 - panel_height // 2
-        self.panel_rect = pygame.Rect(panel_left, panel_top, panel_width, panel_height)
-        button_width = 300
-        button_height = 78
-        total_height = 3 * button_height + 2 * button_spacing
+        self.button_width = 300
+        self.button_height = 78
+        self.button_spacing = 22
+        self.panel_width = 760
+        self.panel_height = 560
+        self.buttons = []
+        self.panel_rect = None
+        self.background_image = None
+        self._update_layout()
+
+    def _update_layout(self):
+        # Hae nykyinen ikkunan koko
+        screen = pygame.display.get_surface()
+        if screen is not None:
+            width, height = screen.get_width(), screen.get_height()
+        else:
+            width, height = 1600, 800
+
+        panel_left = width // 2 - self.panel_width // 2
+        panel_top = height // 2 - self.panel_height // 2
+        self.panel_rect = pygame.Rect(panel_left, panel_top, self.panel_width, self.panel_height)
+
+        total_height = 3 * self.button_height + 2 * self.button_spacing
         start_y = self.panel_rect.top + 170 + (self.panel_rect.height - 240 - total_height) // 2
-        center_x = SCREEN_WIDTH // 2 - button_width // 2
+        center_x = width // 2 - self.button_width // 2
 
         self.buttons = [
             MenuButton(
                 center_x,
                 start_y,
-                button_width,
-                button_height,
+                self.button_width,
+                self.button_height,
                 "START GAME",
                 action="start",
             ),
             MenuButton(
                 center_x,
-                start_y + button_height + button_spacing,
-                button_width,
-                button_height,
+                start_y + self.button_height + self.button_spacing,
+                self.button_width,
+                self.button_height,
                 "SETTINGS",
                 action="settings",
             ),
             MenuButton(
                 center_x,
-                start_y + 2 * (button_height + button_spacing),
-                button_width,
-                button_height,
+                start_y + 2 * (self.button_height + self.button_spacing),
+                self.button_width,
+                self.button_height,
                 "QUIT",
                 action="quit",
                 variant="danger",
             ),
         ]
 
+        self.text_input = TextInput(50, 100, 300, 40)
+        
         # Menu backdrop: draw scene-like background and translucent veil
         # instead of a flat solid color.
         self.background_image = None
+        # Päivitä taustakuva oikeaan kokoon
         try:
             project_root = os.path.dirname(os.path.dirname(__file__))
             bg_path = os.path.join(project_root, "images", "taustat", "avaruus.png")
             bg = pygame.image.load(bg_path).convert()
-            self.background_image = pygame.transform.scale(bg, (SCREEN_WIDTH, SCREEN_HEIGHT))
+            self.background_image = pygame.transform.scale(bg, (width, height))
         except Exception:
             self.background_image = None
 
@@ -85,8 +149,13 @@ class MainMenu:
                         return button.action
 
         return None
+    
+    def get_value(self):
+        return self.text_input.get_value()
 
     def draw(self, surface):
+        # Päivitä layout aina ennen piirtämistä, jos ikkunan koko on muuttunut
+        self._update_layout()
         if self.background_image is not None:
             surface.blit(self.background_image, (0, 0))
         else:
@@ -98,3 +167,7 @@ class MainMenu:
         for button in self.buttons:
             button.update(mouse_pos)
             button.draw(surface)
+        
+        self.text_input.handle_event(pygame.event.poll())
+        self.text_input.draw(surface)
+        self.text_input.save_to_file('player_name.txt')

@@ -22,8 +22,18 @@ from display_settings import (
 #------------------------------------------------------
 
 
-# Oletusnayton asetukset (kaytetaan vain koordinaatteihin, ei luoda uutta ikkunaa)
-WIDTH, HEIGHT = 700, 500
+
+# Valikoiden koko suhteessa ikkunan kokoon (esim. 70%)
+def get_menu_size():
+    screen = pygame.display.get_surface()
+    if screen is not None:
+        width = int(screen.get_width() * 0.7)
+        height = int(screen.get_height() * 0.7)
+        # Varmista minimikoko
+        width = max(width, 400)
+        height = max(height, 300)
+        return width, height
+    return 700, 500
 
 # Standard RGB colors
 RED = (255, 0, 0)
@@ -40,6 +50,122 @@ THEME_SELECTION = (188, 221, 255)
 
 
 def main():
+
+
+
+    def print_general_settings():
+        print("\n\nGeneral settings:")
+        data = general_menu.get_input_data()
+        for key in data.keys():
+            print(f"{key}\t:\t{data[key]}")
+
+    def save_physics_from_menu():
+        save_physics_settings(_current_physics_from_menu())
+
+    def save_preset_from_menu():
+        nonlocal preset_selector
+        data = physics_menu.get_input_data()
+        preset_name = str(data.get("physics_preset_name", "")).strip()
+        if not preset_name:
+            print("Preset name is empty; preset not saved.")
+            return
+
+        try:
+            save_physics_preset(preset_name, _current_physics_from_menu())
+            print(f"Saved physics preset: {preset_name}")
+            if preset_selector is not None:
+                items = [(name, name) for name in load_physics_presets().keys()] or [("None", "")]
+                try:
+                    preset_selector.update_items(items)
+                except Exception:
+                    pass
+        except Exception as exc:
+            print(f"Could not save preset '{preset_name}': {exc}")
+
+    def load_selected_preset_from_menu():
+        data = physics_menu.get_input_data()
+        selected_name = str(data.get("physics_preset_select", (("None", ""), 0))[0][1]).strip()
+        if not selected_name:
+            print("No preset selected.")
+            return
+
+        preset_data = get_physics_preset(selected_name)
+        if not preset_data:
+            print(f"Preset '{selected_name}' not found.")
+            return
+
+        save_physics_settings(preset_data)
+        print(f"Loaded physics preset: {selected_name}")
+
+    def restore_defaults_and_save():
+        physics_menu.reset_value()
+        save_physics_settings(DEFAULT_PHYSICS_SETTINGS)
+
+    def exit_settings():
+        nonlocal done, selected_action
+        selected_action = "return"
+        done = True
+
+    def start_hazard_test_level():
+        nonlocal done, selected_action
+        selected_action = "start_test_level"
+        done = True
+
+    def start_hazard_test2_level():
+        nonlocal done, selected_action
+        selected_action = "start_test2_level"
+        done = True
+
+    def apply_display_settings_from_menu():
+        nonlocal screen, frozen_bg
+        data = general_menu.get_input_data()
+
+        selected_resolution = data.get("resolution", (("1280x720", "1280x720"), 0))[0][1]
+        selected_mode = data.get("display_mode", (("Windowed", "windowed"), 0))[0][1]
+
+        # Käytetään labelia suoraan ja parsitaan siitä width ja height
+        width, height = parse_resolution_label(selected_resolution)
+        fullscreen = str(selected_mode).strip().lower() == "fullscreen"
+
+        # Tallennetaan täsmälleen valittu resoluutio
+        save_display_settings({
+            "width": width,
+            "height": height,
+            "fullscreen": fullscreen
+        })
+
+        # Käytä windowed-tilassa oletusflagia (näkyy yläpalkki), fullscreenissä FULLSCREEN
+        flags = pygame.FULLSCREEN if fullscreen else 0
+        screen = pygame.display.set_mode((width, height), flags)
+        frozen_bg = screen.copy()
+        # Luo valikot uudelleen uusilla mitoilla
+        create_menus()
+
+    physics_data = load_physics_settings()
+    display_data = load_display_settings()
+    display_modes = [
+        ("Windowed", "windowed"),
+        ("Fullscreen", "fullscreen"),
+    ]
+    physics_profiles = [
+        ("Realistic", "realistic"),
+        ("Balanced", "balanced"),
+        ("Arcade", "arcade"),
+    ]
+    def _profile_index(value):
+        value = str(value).strip().lower()
+        for i, (_, profile_value) in enumerate(physics_profiles):
+            if profile_value == value:
+                return i
+        return 1
+
+    def _index_for_value(items, value):
+        target = str(value).strip().lower()
+        for i, (_, item_value) in enumerate(items):
+            if str(item_value).strip().lower() == target:
+                return i
+        return 0
+
     try:
         import pygame_menu as pm
     except Exception:
@@ -55,6 +181,160 @@ def main():
 
     # Pause-style translucent backdrop: frozen frame + dark alpha overlay.
     frozen_bg = screen.copy()
+
+    menu_theme = pm.themes.THEME_DARK.copy()
+    menu_theme.background_color = THEME_BG
+    menu_theme.title_background_color = THEME_TITLE_BG
+    menu_theme.title_font_color = THEME_TEXT
+    menu_theme.widget_font_color = THEME_TEXT
+    menu_theme.selection_color = THEME_SELECTION
+    menu_theme.widget_font_size = 25
+    menu_theme.widget_alignment = pm.locals.ALIGN_CENTER
+    menu_theme.title_font_size = 46
+    menu_theme.widget_padding = 10
+
+    def create_menus():
+        nonlocal settings, general_menu, physics_menu, WIDTH, HEIGHT, display_data
+        WIDTH, HEIGHT = get_menu_size()
+        display_data = load_display_settings()  # Lataa aina tuore display_data tiedostosta
+        settings = pm.Menu(
+            title="Settings",
+            width=WIDTH,
+            height=HEIGHT,
+            theme=menu_theme,
+        )
+        general_menu = pm.Menu(
+            title="General Settings",
+            width=WIDTH,
+            height=HEIGHT,
+            theme=menu_theme,
+        )
+        general_menu._theme.widget_alignment = pm.locals.ALIGN_LEFT
+        physics_menu = pm.Menu(
+            title="Physics Settings",
+            width=WIDTH,
+            height=HEIGHT,
+            theme=menu_theme,
+        )
+        physics_menu._theme.widget_alignment = pm.locals.ALIGN_LEFT
+
+        # General settings page
+        resolution = resolution_items()
+        general_menu.add.selector(
+            title="Window Resolution",
+            items=resolution,
+            selector_id="resolution",
+            default=_index_for_value(
+                resolution,
+                resolution_to_label(display_data.get("width", 1280), display_data.get("height", 720)),
+            ),
+        )
+        general_menu.add.selector(
+            title="Display Mode",
+            items=display_modes,
+            selector_id="display_mode",
+            default=_index_for_value(
+                display_modes,
+                "fullscreen" if display_data.get("fullscreen", False) else "windowed",
+            ),
+        )
+        general_menu.add.toggle_switch(title="Music", default=True, toggleswitch_id="music")
+        general_menu.add.toggle_switch(title="Sounds", default=False, toggleswitch_id="sound")
+        general_menu.add.button(
+            title="Apply Settings",
+            action=apply_display_settings_from_menu,
+            font_color=WHITE,
+            background_color=(54, 120, 82),
+        )
+        general_menu.add.button(
+            title="Print Settings",
+            action=print_general_settings,
+            font_color=WHITE,
+            background_color=GREEN,
+        )
+        general_menu.add.button(title="Back", action=pm.events.BACK)
+
+        # Physics settings page
+        physics_menu.add.selector(
+            title="Physics Profile",
+            items=physics_profiles,
+            selector_id="physics_profile",
+            default=_profile_index(physics_data.get("physics_profile", "balanced")),
+        )
+        physics_menu.add.range_slider(
+            title="Nose Offset",
+            default=float(physics_data.get("sprite_angle_offset_deg", 0.0)),
+            range_values=(-180.0, 180.0),
+            increment=1.0,
+            value_format=lambda x: f"{int(x):+d}",
+            rangeslider_id="physics_offset",
+        )
+        physics_menu.add.range_slider(
+            title="Speed Mult",
+            default=float(physics_data.get("speed_multiplier", 1.0)),
+            range_values=(0.3, 3.5),
+            increment=0.05,
+            value_format=lambda x: f"{x:.2f}",
+            rangeslider_id="physics_speed",
+        )
+        physics_menu.add.range_slider(
+            title="Turn Mult",
+            default=float(physics_data.get("turn_multiplier", 1.0)),
+            range_values=(0.3, 3.5),
+            increment=0.05,
+            value_format=lambda x: f"{x:.2f}",
+            rangeslider_id="physics_turn",
+        )
+        physics_menu.add.text_input(
+            title="Preset Name",
+            default="my_preset",
+            textinput_id="physics_preset_name",
+        )
+        preset_items = [(name, name) for name in load_physics_presets().keys()] or [("None", "")]
+        nonlocal preset_selector
+        preset_selector = physics_menu.add.selector(
+            title="Load Preset",
+            items=preset_items,
+            selector_id="physics_preset_select",
+            default=0,
+        )
+        physics_menu.add.button(
+            title="Save Physics Settings",
+            action=save_physics_from_menu,
+            font_color=WHITE,
+            background_color=CYAN,
+        )
+        physics_menu.add.button(
+            title="Save Physics Preset",
+            action=save_preset_from_menu,
+            font_color=WHITE,
+            background_color=BLUE,
+        )
+        physics_menu.add.button(
+            title="Load Physics Preset",
+            action=load_selected_preset_from_menu,
+            font_color=WHITE,
+            background_color=(70, 90, 180),
+        )
+        physics_menu.add.button(
+            title="Restore Physics Defaults",
+            action=restore_defaults_and_save,
+            font_color=WHITE,
+            background_color=RED,
+        )
+        physics_menu.add.button(title="Back", action=pm.events.BACK)
+
+        # Main settings hub (no scrolling needed)
+        settings.add.button("General Settings", general_menu)
+        settings.add.button("Physics Settings", physics_menu)
+        settings.add.button("Start Hazard Test Level", start_hazard_test_level)
+        settings.add.button("Start Hazard Test2 Level", start_hazard_test2_level)
+        settings.add.button("Return To Main Menu", exit_settings)
+
+    # Alustava luonti
+    settings = general_menu = physics_menu = preset_selector = None
+    WIDTH = HEIGHT = 0
+    create_menus()
 
     def draw_translucent_bg():
         screen.blit(frozen_bg, (0, 0))
@@ -109,47 +389,7 @@ def main():
             "turn_multiplier": turn_value,
         }
 
-    def save_physics_from_menu():
-        save_physics_settings(_current_physics_from_menu())
 
-    def save_preset_from_menu():
-        nonlocal preset_selector
-        data = physics_menu.get_input_data()
-        preset_name = str(data.get("physics_preset_name", "")).strip()
-        if not preset_name:
-            print("Preset name is empty; preset not saved.")
-            return
-
-        try:
-            save_physics_preset(preset_name, _current_physics_from_menu())
-            print(f"Saved physics preset: {preset_name}")
-            if preset_selector is not None:
-                items = [(name, name) for name in load_physics_presets().keys()] or [("None", "")]
-                try:
-                    preset_selector.update_items(items)
-                except Exception:
-                    pass
-        except Exception as exc:
-            print(f"Could not save preset '{preset_name}': {exc}")
-
-    def load_selected_preset_from_menu():
-        data = physics_menu.get_input_data()
-        selected_name = str(data.get("physics_preset_select", (("None", ""), 0))[0][1]).strip()
-        if not selected_name:
-            print("No preset selected.")
-            return
-
-        preset_data = get_physics_preset(selected_name)
-        if not preset_data:
-            print(f"Preset '{selected_name}' not found.")
-            return
-
-        save_physics_settings(preset_data)
-        print(f"Loaded physics preset: {selected_name}")
-
-    def restore_defaults_and_save():
-        physics_menu.reset_value()
-        save_physics_settings(DEFAULT_PHYSICS_SETTINGS)
 
     settings = pm.Menu(
         title="Settings",
@@ -192,11 +432,7 @@ def main():
         selected_action = "start_test2_level"
         done = True
 
-    def print_general_settings():
-        print("\n\nGeneral settings:")
-        data = general_menu.get_input_data()
-        for key in data.keys():
-            print(f"{key}\t:\t{data[key]}")
+
 
     def _index_for_value(items, value):
         target = str(value).strip().lower()
@@ -221,9 +457,12 @@ def main():
         }
         save_display_settings(new_display)
 
+        # Käytä windowed-tilassa oletusflagia (näkyy yläpalkki), fullscreenissä FULLSCREEN
         flags = pygame.FULLSCREEN if fullscreen else 0
         screen = pygame.display.set_mode((width, height), flags)
         frozen_bg = screen.copy()
+        # Luo valikot uudelleen uusilla mitoilla
+        create_menus()
 
     # Main settings hub (no scrolling needed)
     settings.add.button("General Settings", general_menu)

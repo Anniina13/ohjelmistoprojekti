@@ -14,6 +14,34 @@ DARK_BLUE = (52, 78, 91)
 
 class PauseMenu:
     """Pausemenun hallinta"""
+
+    def _update_layout(self):
+        # Hae nykyinen ikkunan koko
+        screen = self.screen if self.screen is not None else pygame.display.get_surface()
+        if screen is not None:
+            width, height = screen.get_width(), screen.get_height()
+        else:
+            width, height = SCREEN_WIDTH, SCREEN_HEIGHT
+
+        panel_width = 760
+        panel_height = 560
+        self.panel_rect = pygame.Rect(
+            width // 2 - panel_width // 2,
+            height // 2 - panel_height // 2,
+            panel_width,
+            panel_height,
+        )
+        button_width = 300
+        button_height = 78
+        button_spacing = 22
+        total_height = 3 * button_height + 2 * button_spacing
+        start_y = self.panel_rect.top + 170 + (self.panel_rect.height - 240 - total_height) // 2
+        center_x = width // 2 - button_width // 2
+        self.buttons = [
+            MenuButton(center_x, start_y, button_width, button_height, "CONTINUE", action="continue", variant="success"),
+            MenuButton(center_x, start_y + button_height + button_spacing, button_width, button_height, "SETTINGS", action="settings"),
+            MenuButton(center_x, start_y + 2 * (button_height + button_spacing), button_width, button_height, "QUIT", action="quit", variant="danger"),
+        ]
     
     def __init__(self, screen=None):
         self.screen = screen
@@ -73,6 +101,7 @@ class PauseMenu:
     
     def draw(self, background_surface=None):
         """Piirtää pausemenun"""
+        self._update_layout()
         screen = self.screen if self.screen is not None else pygame.display.get_surface()
         if background_surface is not None and isinstance(background_surface, pygame.Surface):
             try:
