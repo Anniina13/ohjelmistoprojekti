@@ -27,7 +27,7 @@ class LevelCompleteState(GameState):
         
         # Get current level number from manager, if available
         current_level = 1 if not level_manager else level_manager.get_current_level_number()
-        max_level = 5 if not level_manager else level_manager.num_levels
+        max_level = 3 if not level_manager else level_manager.num_levels
         next_level = current_level + 1 if current_level < max_level else current_level
         try_again = current_level if current_level <= max_level else max_level
         

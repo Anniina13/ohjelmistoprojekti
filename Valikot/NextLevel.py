@@ -97,7 +97,6 @@ class NextLevel:
 			target,
 			self.panel_rect,
 			"LEVEL COMPLETE",
-			f"Current: {self.display_current_level}   Next: {self.display_next_level}",
 		)
 
 		mouse_pos = pygame.mouse.get_pos()
