@@ -1,5 +1,6 @@
 import pygame
 import os
+import json
 from Valikot.menu_style import (
     MenuButton,
     draw_dim_overlay,
@@ -159,6 +160,19 @@ class MainMenu:
     
     def get_value(self):
         return self.text_input.get_value()
+    
+    def show_score(self, x, y, font, screen, filename='leaderboard.json', top_n=5):
+        try:
+            with open(filename, 'r') as file:
+                scores = json.load(file)
+            scores = dict(sorted(scores.items(), key=lambda item: item[1], reverse=True)[:top_n])
+            screen.blit(font.render("LEADERBOARD", True, (255, 255, 255)), (x, y))
+            for player_id, score in scores.items():
+                score_text = f"{player_id}: {score}"
+                score = font.render(score_text, True, (255, 255, 255))
+                screen.blit(score, (x, y + 30 * (list(scores.keys()).index(player_id) + 1)))
+        except FileNotFoundError:
+            pass
 
     def draw(self, surface):
         # Päivitä layout aina ennen piirtämistä, jos ikkunan koko on muuttunut
@@ -179,6 +193,8 @@ class MainMenu:
                     self.sounds.play_sfx("button_hover")
             self.previous_hovered_button = button if button.is_hovered else None
             button.draw(surface)
+        
+        self.show_score(50, 50, pygame.font.Font(None, 36), surface, filename='leaderboard.json', top_n=5)
         
         self.text_input.handle_event(pygame.event.poll())
         self.text_input.draw(surface)
