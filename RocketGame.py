@@ -44,14 +44,6 @@ try:
 except ImportError:
     spawn_wave_taso3 = None
 try:
-    from Tasot.Taso4 import spawn_wave_taso4
-except ImportError:
-    spawn_wave_taso4 = None
-try:
-    from Tasot.Taso5 import spawn_wave_taso5
-except ImportError:
-    spawn_wave_taso5 = None
-try:
     from Tasot.TestLevel import spawn_wave_test
 except ImportError:
     spawn_wave_test = None
@@ -883,10 +875,7 @@ class Game:
             spawn_func = spawn_wave_taso2
         elif self.level_number == 3 and spawn_wave_taso3:
             spawn_func = spawn_wave_taso3
-        elif self.level_number == 4 and spawn_wave_taso4:
-            spawn_func = spawn_wave_taso4
-        elif self.level_number == 5 and spawn_wave_taso5:
-            spawn_func = spawn_wave_taso5
+
 
         if spawn_func:
             handled = spawn_func(
