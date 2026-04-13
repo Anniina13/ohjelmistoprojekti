@@ -3,8 +3,11 @@ import os
 from copy import deepcopy
 
 
-SETTINGS_FILE = "physics_settings.json"
-PRESETS_FILE = "physics_presets.json"
+SETTINGS_DIR = os.path.join(os.path.dirname(__file__), "SETTINGS-tiedostot")
+SETTINGS_FILE = os.path.join(SETTINGS_DIR, "physics_settings.json")
+PRESETS_FILE = os.path.join(SETTINGS_DIR, "physics_presets.json")
+LEGACY_SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "physics_settings.json")
+LEGACY_PRESETS_FILE = os.path.join(os.path.dirname(__file__), "physics_presets.json")
 
 DEFAULT_PHYSICS_SETTINGS = {
     "sprite_angle_offset_deg": 0.0,
@@ -15,11 +18,11 @@ DEFAULT_PHYSICS_SETTINGS = {
 
 
 def _settings_path():
-    return os.path.join(os.path.dirname(__file__), SETTINGS_FILE)
+    return SETTINGS_FILE
 
 
 def _presets_path():
-    return os.path.join(os.path.dirname(__file__), PRESETS_FILE)
+    return PRESETS_FILE
 
 
 def load_physics_settings():
@@ -30,6 +33,47 @@ def load_physics_settings():
         with open(path, "r", encoding="utf-8") as fh:
             loaded = json.load(fh)
     except FileNotFoundError:
+        try:
+            with open(LEGACY_SETTINGS_FILE, "r", encoding="utf-8") as fh:
+                loaded = json.load(fh)
+        except FileNotFoundError:
+            return data
+        except Exception:
+            return data
+
+        if not isinstance(loaded, dict):
+            return data
+
+        for key in DEFAULT_PHYSICS_SETTINGS:
+            if key in loaded:
+                data[key] = loaded[key]
+
+        # Defensive normalization
+        try:
+            data["sprite_angle_offset_deg"] = float(data["sprite_angle_offset_deg"])
+        except Exception:
+            data["sprite_angle_offset_deg"] = 0.0
+
+        try:
+            data["speed_multiplier"] = float(data["speed_multiplier"])
+        except Exception:
+            data["speed_multiplier"] = 1.0
+
+        try:
+            data["turn_multiplier"] = float(data["turn_multiplier"])
+        except Exception:
+            data["turn_multiplier"] = 1.0
+
+        profile = str(data.get("physics_profile", "balanced")).strip().lower()
+        if profile not in {"realistic", "balanced", "arcade"}:
+            profile = "balanced"
+        data["physics_profile"] = profile
+
+        data["speed_multiplier"] = max(0.3, min(3.5, data["speed_multiplier"]))
+        data["turn_multiplier"] = max(0.3, min(3.5, data["turn_multiplier"]))
+        data["sprite_angle_offset_deg"] = max(-180.0, min(180.0, data["sprite_angle_offset_deg"]))
+
+        save_physics_settings(data)
         return data
     except Exception:
         return data
@@ -75,16 +119,33 @@ def save_physics_settings(settings):
     if isinstance(settings, dict):
         data.update(settings)
 
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2)
 
 
 def load_physics_presets():
     path = _presets_path()
+    legacy_path = LEGACY_PRESETS_FILE
     try:
         with open(path, "r", encoding="utf-8") as fh:
             data = json.load(fh)
     except FileNotFoundError:
+        try:
+            with open(legacy_path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except FileNotFoundError:
+            return {}
+        except Exception:
+            return {}
+
+        if isinstance(data, dict):
+            save_path = _presets_path()
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            with open(save_path, "w", encoding="utf-8") as fh:
+                json.dump(data, fh, indent=2)
+            return data
+
         return {}
     except Exception:
         return {}
@@ -117,7 +178,9 @@ def save_physics_preset(name, settings):
     presets = load_physics_presets()
     presets[preset_name] = normalized
 
-    with open(_presets_path(), "w", encoding="utf-8") as fh:
+    path = _presets_path()
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
         json.dump(presets, fh, indent=2)
 
 

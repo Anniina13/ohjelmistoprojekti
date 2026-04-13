@@ -3,7 +3,9 @@ import os
 from copy import deepcopy
 
 
-SETTINGS_FILE = "display_settings.json"
+SETTINGS_DIR = os.path.join(os.path.dirname(__file__), "SETTINGS-tiedostot")
+SETTINGS_FILE = os.path.join(SETTINGS_DIR, "display_settings.json")
+LEGACY_SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "display_settings.json")
 
 DEFAULT_DISPLAY_SETTINGS = {
     "width": 1280,
@@ -62,11 +64,21 @@ def normalize_display_settings(settings):
 
 def load_display_settings():
     path = _settings_path()
+    legacy_path = LEGACY_SETTINGS_FILE
     try:
         with open(path, "r", encoding="utf-8") as fh:
             loaded = json.load(fh)
     except FileNotFoundError:
-        return deepcopy(DEFAULT_DISPLAY_SETTINGS)
+        try:
+            with open(legacy_path, "r", encoding="utf-8") as fh:
+                loaded = json.load(fh)
+        except FileNotFoundError:
+            return deepcopy(DEFAULT_DISPLAY_SETTINGS)
+        except Exception:
+            return deepcopy(DEFAULT_DISPLAY_SETTINGS)
+        normalized = normalize_display_settings(loaded)
+        save_display_settings(normalized)
+        return normalized
     except Exception:
         return deepcopy(DEFAULT_DISPLAY_SETTINGS)
 
@@ -76,6 +88,7 @@ def load_display_settings():
 def save_display_settings(settings):
     path = _settings_path()
     normalized = normalize_display_settings(settings)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(normalized, fh, indent=2)
 
