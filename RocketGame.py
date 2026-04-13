@@ -1,6 +1,6 @@
 """
 Module: RocketGame.py
-Dependencies: pygame, os, random, SpriteSettings, PLAYER_LUOKAT.Player2 (Player2), EnemyAI (StraightEnemy, CircleEnemy), boss_enemy (BossEnemy), Points
+Dependencies: pygame, os, random, SpriteSettings, PLAYER_LUOKAT.Player2 (Player2), EnemyAI (StraightEnemy, CircleEnemy), Enemies.boss_enemy (BossEnemy), Points
 Provides: main game loop, loads sprites and spawns enemies/boss, handles collisions and draws
 Uses: EnemyHelpers for specific explosion spawn when needed
 """
@@ -14,7 +14,7 @@ from Enemies import enemy
 import pygame
 import random
 from Enemies.EnemyAI import StraightEnemy, CircleEnemy, DownEnemy, UpEnemy, ZigZagEnemy, ChaseEnemy
-from boss_enemy import BossEnemy
+from Enemies.boss_enemy import BossEnemy
 from points import Points
 sys.path.append(os.path.dirname(__file__))
 from player2 import Player2
