@@ -1,24 +1,54 @@
 import os
 import pygame
 
-# Simple planets helper: load a decorative planet sprite, handle rotation and drawing.
-# Public API:
+# ============================================================================
+# PLANEETAN ANIMAATIO JA PIIRTÄMINEN
+# ============================================================================
+# LATAA PLANEETAN KUVIA, KIERTÄÄ NIITÄ TAI ANIMOI KUVARUUTSARJAA, JA PIIRTÄÄ
+# NE RUUDULLE ERI ASEMIIN (KEHYKSEN YLÄ, RUUDUN KESKI, MAAILMAN KOORDINAATIT).
+
+# KÄYTTÖLIITTYMÄ:
 #   init_planet(project_root=None, filename=None, height=96, rot_speed_deg=36.0)
 #   update_planet(dt_ms)
 #   draw_planet_above_frame(screen, frame_x, frame_y, frame_w, frame_h, gap=6)
 
+# ALKUPERÄINEN KUVA ENNEN MUUNNOKSIA (pygame.Surface TAI NONE)
 _sprite_orig = None
+# KUVA JONKA KIERRETÄÄN NÄYTÖLLÄ (pygame.Surface TAI NONE)
 _sprite_base = None
+# NYKYINEN KIERTOKULMA ASTEISSA (0-360)
 _angle = 0.0
+# KIERTONOPEUS ASTEISSA SEKUNNISSA
 _rot_speed = 36.0
+# KAIKKI KUVARUUDUT KUN KÄYTETÄÄN KUVARUUTSARJA-ANIMAATIOTA (LISTA pygame.Surface OBJEKTEJA)
 _frames = []
+# NYKYISEN KUVARUUDUN INDEKSI LISTASSA
 _frame_index = 0
+# KULUNUT AIKA NYKYISELLE KUVARUUDULLE MILLISEKUNTEISSA
 _frame_time = 0.0
-_frame_duration = 200.0  # ms per frame
-_mode = 'rotate'  # or 'frames'
+# KUINKA KAUAN YKSI KUVARUUTU NÄYTETÄÄN MILLISEKUNTEISSA
+_frame_duration = 200.0
+# TOIMINTATILA: 'rotate' = KIERTÄVÄ KUVA TAI 'frames' = KUVARUUTSARJA
+_mode = 'rotate'
 
 
 def init_planet(project_root=None, filename=None, height=96, rot_speed_deg=36.0, mode='rotate', frame_duration_ms=200.0):
+    """
+    ALUSTAA PLANEETAN KUVAN JA ANIMAATION ASETUKSET.
+    
+    LATAA PLANEETAN KUVATIEDOSTON MÄÄRITELLYSTÄ KANSIOSTA, MUOKKAA SEN KOKOA
+    JA VALMISTELEE SEN PIIRTÄMISEEN JOKO KIERTÄVÄNÄ TAI KUVARUUTSARJANA.
+    
+    Parametrit:
+        project_root (str): Projektin juuri. Jos None, käytetään tämän tiedoston sijaintia.
+        filename (str): Kuvatiedoston nimi. Jos None, käytetään oletuksena Terrestrial_03-512x512.png tai ensimmäistä löydettyä.
+        height (int): Kuvan näyttökorkeus pikseleissä (oletus 96).
+        rot_speed_deg (float): Kiertonopeus asteissa sekunnissa (oletus 36).
+        mode (str): Animaatiotila 'rotate' tai 'frames' (oletus 'rotate').
+        frame_duration_ms (float): Kuvaruudun näyttöaika millisekunteissa (oletus 200).
+    
+    Palautus: Ei palautuksia. Asettaa globaalit muuttujat.
+    """
     global _sprite_base, _sprite_orig, _rot_speed, _angle, _frames, _frame_index, _frame_time, _frame_duration, _mode
     _angle = 0.0
     _rot_speed = float(rot_speed_deg)
@@ -28,49 +58,55 @@ def init_planet(project_root=None, filename=None, height=96, rot_speed_deg=36.0,
     _frame_time = 0.0
     _frame_duration = float(frame_duration_ms)
     try:
-        # default folder for terrestrial sprites
+        # Planeetan kuvien kansion sijainti
         planet_dir = os.path.join(project_root, 'images', 'SBS - 2D Planet Pack 2 - Shaded 512x512',
                                   'Large Planets 512x512', 'Solid', 'Terrestrial')
-        # If mode is 'frames', load all PNGs in the folder (or a specific filename if given)
+        # Kun käytetään kuvaruutsarja-animaatiota, ladataan kaikki PNG-kuvat kansiosta
         if _mode == 'frames':
+            # Kuvatiedostojen nimet
             names = []
             if filename:
                 names = [filename]
             else:
+                # Ladataan kaikki PNG-tiedostot kansiosta aakkosissa järjestyksessä
                 names = sorted([n for n in os.listdir(planet_dir) if n.lower().endswith('.png')])
             if not names:
                 _sprite_base = None
                 _sprite_orig = None
                 return
 
+            # Käydään läpi jokainen tiedosto ja lisätään kuvaruudut listaan
             for n in names:
                 path = os.path.join(planet_dir, n)
                 surf = pygame.image.load(path).convert_alpha()
                 try:
+                    # Poistetaan tyhjä tila kuvan ympärillä
                     bbox = surf.get_bounding_rect()
                     cropped = surf.subsurface(bbox).copy() if bbox.width and bbox.height else surf
                 except Exception:
                     cropped = surf
-                # scale to requested height preserving aspect
+                # Skaalataan kuva haluttuun korkeuteen säilyttäen kuvasuhteen
                 if cropped.get_height() != height:
                     pw = max(1, int(cropped.get_width() * (height / cropped.get_height())))
                     frame = pygame.transform.smoothscale(cropped, (pw, height))
                 else:
                     frame = cropped
                 _frames.append(frame)
-            # also keep a representative original for compatibility
+            # Säilytetään ensimmäinen kuvaruutu yhteensopivuutta varten
             _sprite_orig = _frames[0].copy() if _frames else None
             _sprite_base = _sprite_orig
             return
 
-        # default rotate mode: single sprite behavior
+        # Yksittäisen kuvan kierto-animaatio oletustavana
         if filename:
             path = os.path.join(planet_dir, filename)
         else:
+            # Yritetään ensiksi oletusvaihtoehtoa
             preferred = os.path.join(planet_dir, 'Terrestrial_03-512x512.png')
             if os.path.exists(preferred):
                 path = preferred
             else:
+                # Jos oletusvaihtoehtoa ei ole, käytetään ensimmäistä löydettyä PNG:tä
                 names = [n for n in os.listdir(planet_dir) if n.lower().endswith('.png')]
                 if not names:
                     _sprite_base = None
@@ -78,13 +114,16 @@ def init_planet(project_root=None, filename=None, height=96, rot_speed_deg=36.0,
                     return
                 path = os.path.join(planet_dir, names[0])
 
+        # Ladataan kuva
         surf = pygame.image.load(path).convert_alpha()
         try:
+            # Poistetaan tyhjä tila kuvan ympärillä
             bbox = surf.get_bounding_rect()
             cropped = surf.subsurface(bbox).copy() if bbox.width and bbox.height else surf
         except Exception:
             cropped = surf
         _sprite_orig = cropped.copy()
+        # Skaalataan kuva haluttuun korkeuteen säilyttäen kuvasuhteen
         if cropped.get_height() != height:
             pw = max(1, int(cropped.get_width() * (height / cropped.get_height())))
             base_surf = pygame.transform.smoothscale(cropped, (pw, height))
@@ -97,10 +136,22 @@ def init_planet(project_root=None, filename=None, height=96, rot_speed_deg=36.0,
 
 
 def update_planet(dt_ms):
-    """Advance rotation or frame animation based on dt in milliseconds."""
+    """
+    PÄIVITTÄÄ PLANEETAN KIERTOKULMAA TAI KUVARUUTUA AJAN KULUMISEN MUKAISESTI.
+    
+    JOS KÄYTETÄÄN 'rotate'-TILAA, KIERRETÄÄN KUVAA. JOS KÄYTETÄÄN 'frames'-TILAA,
+    SIIRRETÄÄN SEURAAVAAN KUVARUUTUUN MÄÄRITETYN AJAN KULUTTUA.
+    
+    Parametrit:
+        dt_ms (float): Kulunut aika millisekunteissa edellisestä päivityksestä.
+    
+    Palautus: Ei palautuksia. Päivittää globaalit muuttujat (_angle, _frame_index).
+    """
     global _angle, _frame_time, _frame_index
+    # Muutetaan millisekunnit sekunneiksi
     dt = max(0.0, dt_ms) / 1000.0
     if _mode == 'frames' and _frames:
+        # Kuvaruutsarja-animaatio: lasketaan nykyinen kuvaruutu kuluvan ajan perusteella
         total = _frame_time + max(0.0, dt_ms)
         if _frame_duration > 0:
             _frame_index = int(total // _frame_duration) % len(_frames)
@@ -108,6 +159,7 @@ def update_planet(dt_ms):
         else:
             _frame_time = 0.0
     else:
+        # Kierto-animaatio: päivitetään kiertokulma
         _angle = (_angle + _rot_speed * dt) % 360.0
 
 

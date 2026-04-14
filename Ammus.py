@@ -2,13 +2,13 @@
 Ammus.py projectile presets and behavior
 
 Missä ammusten tiedot määritellään:
-- Kaikki oletusarvot ja esiasetukset löytyvät `Ammus.PRESETS`-sanakirjasta
+- Kaikki oletusarvot ja esiasetukset löytyvät Ammus.PRESETS-sanakirjasta
     alla tässä tiedostossa. Muokkaa sitä muuttaaksesi ammusten nopeutta,
     cooldownia (ms).
 
 Miten pelaajan ammusten spawn-logiikka toimii:
-- `PlayerWeapons.shoot()` on yleinen kahden-luodin pikalaukaisu, joka käyttää globaalisti määritettyä `shoot_cooldown`-arvoa.
-- `PlayerWeapons.shoot_with(kind)` käyttää `Ammus.PRESETS[kind]`-presettiä ja kunnioittaa presetin asetuksia kuten `count`, `rps` (rounds/sec) ja `cooldown`.
+- PlayerWeapons.shoot()` on yleinen kahden-luodin pikalaukaisu, joka käyttää globaalisti määritettyä `shoot_cooldown`-arvoa.
+- PlayerWeapons.shoot_with(kind)` käyttää `Ammus.PRESETS[kind]`-presettiä ja kunnioittaa presetin asetuksia kuten `count`, `rps` (rounds/sec) ja `cooldown`.
 
 
 - P (normaali ase, sininen) käyttää presetiä `Shot2` — oletusasetus ampuu kaksi ammusta nopealla tahdilla, ilman per-preset cooldownia (vain globaalin cooldownin rajoittama).
@@ -16,8 +16,8 @@ Miten pelaajan ammusten spawn-logiikka toimii:
     hitaampi ja sillä on preset-kohtainen cooldown (esim. 3000 ms).
 
 Käyttö esimerkkeinä:
-- `Ammus.PRESETS['Shot2']['count'] = 2`  # P ampuu tuplan (sininen)
-- `Ammus.PRESETS['Shot1']['cooldown'] = 3000`  # L voi ampua kerran 3s (vihreä)
+- Ammus.PRESETS['Shot2']['count'] = 2`  # P ampuu tuplan (sininen)
+- Ammus.PRESETS['Shot1']['cooldown'] = 3000`  # L voi ampua kerran 3s (vihreä)
 
 Huomaa:
 - `Ammus.from_preset(kind, ...)` palauttaa `Ammus`-instanssin. Mahdolliset

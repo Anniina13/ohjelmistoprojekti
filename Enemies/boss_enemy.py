@@ -5,6 +5,7 @@ import math
 import re
 from Enemies.enemy import Enemy
 from ui import get_enemy_bar_images, draw_healthbar_custom
+from Audio import pelimusat
 
 class BossMissile(pygame.sprite.Sprite):
     """Boss missile with staged launch and car-like steering/drift."""
@@ -190,6 +191,9 @@ class BossMissile(pygame.sprite.Sprite):
             if self.timer_ms >= self.ignite_ms:
                 self.state = "flight"
                 self.timer_ms = 0
+                # Soita ohjus käynnistysääni
+                if hasattr(pelimusat, 'game_sounds') and pelimusat.game_sounds:
+                    pelimusat.game_sounds.play_sfx("boss_missile_launch")
 
         elif self.state == "flight":
             self._advance_flight_anim(dt_ms)
@@ -364,7 +368,7 @@ class BossEnemy(Enemy):
         if self.state != "active" or player is None or not containers:
             return
 
-        bullets = containers.get('bullets')
+        bullets = containers.get('enemy_bullets')
         if bullets is None:
             return
 

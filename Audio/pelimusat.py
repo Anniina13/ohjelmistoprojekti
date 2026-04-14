@@ -79,6 +79,7 @@ class GameSounds:
             #"boss_shoot": "Aanet/boss-ampuu-ammus.mp3",
             "boss_explosion": "Aanet/BIGBOSS-EXPLOSION.mp3",
             "boss_sound": "Aanet/BIGBOSS-SOUND.mp3",
+            "boss_missile_launch": "Aanet/Ohjus.mp3",
             #"boss_rocket_launch": "Aanet/boss-laukaisee-rocketin.mp3",
         },
         "BOMBS": {
@@ -131,6 +132,7 @@ class GameSounds:
         # BOSS_ACTIONS
         "boss_explosion": "BOSS_ACTIONS",
         "boss_sound": "BOSS_ACTIONS",
+        "boss_missile_launch": "BOSS_ACTIONS",
         # BOMBS
         "bomb_explosion": "BOMBS",
     }
@@ -152,6 +154,7 @@ class GameSounds:
         "button_hover": 0.7,         # MENU HOVER
         "game_start": 1.0,           # PELI ALKAA
         "bomb_explosion": 1.0,       # POMMI RÄJÄHTÄÄ
+        "boss_missile_launch": 0.7,  # OHJUS LÄHTÖ
     }
 
     # ============================================================================

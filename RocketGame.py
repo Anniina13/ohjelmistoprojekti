@@ -1292,6 +1292,9 @@ class Game:
                 self.apply_damage(1)  # Enemy bullet damage (armor first, then health)
                 if hasattr(self.player, 'trigger_hit_animation'):
                     self.player.trigger_hit_animation()
+                # Soita pelaajaan osumisen ääni
+                if hasattr(pelimusat, 'game_sounds') and pelimusat.game_sounds:
+                    pelimusat.game_sounds.play_sfx("meteor_hits_player")
 
         if self.hazard_system is None:
             # Legacy meteor collision handling.
